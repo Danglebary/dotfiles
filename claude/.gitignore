@@ -1,0 +1,15 @@
+# ~/.claude repo — allowlist strategy.
+# Ignore everything by default so state/cache/secrets Claude Code writes here
+# never get committed; then re-include only the portable config worth tracking.
+# settings.json itself is generated from settings.base.json plus the overlay
+# fragment, so it stays ignored; overlay/ is a separate repository.
+
+/*
+
+!/.gitignore
+!/README.md
+!/CLAUDE.md
+!/settings.base.json
+!/settings-merge.jq
+!/settings-merge.sh
+!/statusline-command.sh
