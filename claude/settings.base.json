@@ -47,17 +47,6 @@
       "Bash(git push -f:*)"
     ]
   },
-  "enabledPlugins": {
-    "chronicle@chronicle": true
-  },
-  "extraKnownMarketplaces": {
-    "chronicle": {
-      "source": {
-        "source": "directory",
-        "path": "~/Documents/CODE/ai/chronicle"
-      }
-    }
-  },
   "tui": "fullscreen",
   "showThinkingSummaries": true,
   "skipWorkflowUsageWarning": true,

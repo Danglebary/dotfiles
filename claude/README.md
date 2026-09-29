@@ -7,7 +7,7 @@ The portable slice of my `~/.claude` directory, versioned so I can sync and upda
 This repo *is* `~/.claude`, but it deliberately tracks only a few files. That directory is also where Claude Code writes local state, caches, and credentials, so [`.gitignore`](.gitignore) uses an allowlist: everything is ignored by default and only portable config is re-included.
 
 - `CLAUDE.md` — global instructions applied to every project; its last line imports the overlay's guide
-- `settings.base.json` — the shared settings every persona starts from (model, statusline, permission gates, hooks, the plugins every persona uses)
+- `settings.base.json` — the shared settings every persona starts from (model, statusline, permission gates, hooks). Plugins and their marketplaces belong in an overlay, because a marketplace's source path depends on where a machine keeps the plugin repos.
 - `settings-merge.jq` and `settings-merge.sh` — regenerate `settings.json` from the base fragment and the overlay fragment
 - `statusline-command.sh` — the script the statusline setting points at
 
@@ -47,7 +47,3 @@ git clone https://github.com/Danglebary/claude-home.git /tmp/claude-home
 mv /tmp/claude-home/.git ~/.claude/.git
 cd ~/.claude && git checkout -- .
 ```
-
-## Caveat
-
-The plugin marketplaces are `directory` sources under `~/Documents/CODE/ai/`, which is where the plugin repos are checked out on my machines. `~` expands, so the paths are portable across machines that keep the same layout; on one that does not, point them at wherever the plugin repos live.
