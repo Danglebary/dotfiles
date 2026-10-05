@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+# Composes Claude Code's user configuration from an ordered list of layers.
+#
+# A layer is a directory holding any of guide/<topic>.md, rules/**, and
+# settings.json, and its name is the directory's name. The first layer to carry
+# a topic opens it with a top-level heading; a later layer's file of the same
+# name extends that topic and carries no heading of its own. Layers only add:
+# nothing here removes or reorders what an earlier layer wrote.
+#
+# Writes into the output directory, and touches nothing else there:
+#   CLAUDE.md       every topic, alphabetically, each layer's part in layer order
+#   topics/<t>.md   each topic on its own
+#   rules/<layer>/  each layer's rules, copied as plain files
+#   settings.json   the layers' settings fragments merged (bin/merge-settings.jq)
+#   manifest.json   each topic and the layers contributing to it
+#
+# Everything is validated and built in a staging directory first, so a refused
+# run changes nothing.
+set -euo pipefail
+
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+merge_path="$script_dir/merge-settings.jq"
+
+fail() {
+  printf 'compose: %s\n' "$1" >&2
+  exit 1
+}
+
+check_layers() {
+  local names=""
+  local layer name
+  for layer in "$@"; do
+    if [ ! -d "$layer" ]; then
+      fail "layer directory $layer does not exist"
+    fi
+    name=$(basename "$layer")
+    if printf '%s' "$names" | grep --quiet --line-regexp --fixed-strings -- "$name"; then
+      fail "layer name $name appears twice; rules/<layer> would collide"
+    fi
+    names="$names$name"$'\n'
+  done
+}
+
+# Every topic name any layer carries, sorted bytewise so the order is the same
+# on every machine.
+topic_names() {
+  local layer file
+  for layer in "$@"; do
+    for file in "$layer"/guide/*.md; do
+      if [ -e "$file" ]; then
+        basename "$file" .md
+      fi
+    done
+  done | LC_ALL=C sort --unique
+}
+
+opens_with_heading() {
+  local first_line=""
+  IFS= read -r first_line < "$1" || true
+  [[ "$first_line" == "# "* ]]
+}
+
+# compose_topic <staging> <topic> <layer>... writes topics/<topic>.md and
+# prints the names of the layers that contributed, one per line.
+compose_topic() {
+  local staging=$1 topic=$2
+  shift 2
+  local text="" layer file
+  for layer in "$@"; do
+    file="$layer/guide/$topic.md"
+    if [ ! -e "$file" ]; then
+      continue
+    fi
+    if [ -z "$text" ]; then
+      if ! opens_with_heading "$file"; then
+        fail "$file introduces the $topic topic, so it must open with a top-level heading (# …)"
+      fi
+      text=$(cat "$file")
+    else
+      if opens_with_heading "$file"; then
+        fail "$file extends the $topic topic, so it must not open with a top-level heading"
+      fi
+      text="$text"$'\n\n'"$(cat "$file")"
+    fi
+    basename "$layer"
+  done
+  printf '%s\n' "$text" > "$staging/topics/$topic.md"
+}
+
+compose_guide() {
+  local staging=$1
+  shift
+  local manifest='{"topics":[]}'
+  local guide="" topic contributors layers_json
+  while IFS= read -r topic; do
+    contributors=$(compose_topic "$staging" "$topic" "$@")
+    layers_json=$(printf '%s\n' "$contributors" | jq --raw-input . | jq --slurp --compact-output .)
+    manifest=$(jq --compact-output --arg name "$topic" --argjson layers "$layers_json" \
+      '.topics += [{name: $name, layers: $layers}]' <<< "$manifest")
+    if [ -n "$guide" ]; then
+      guide="$guide"$'\n\n'
+    fi
+    guide="$guide$(cat "$staging/topics/$topic.md")"
+  done < <(topic_names "$@")
+  printf '%s\n' "$guide" > "$staging/CLAUDE.md"
+  printf '%s\n' "$manifest" > "$staging/manifest.json"
+}
+
+compose_settings() {
+  local staging=$1
+  shift
+  local settings='{}' layer fragment
+  for layer in "$@"; do
+    fragment="$layer/settings.json"
+    if [ ! -e "$fragment" ]; then
+      continue
+    fi
+    if ! jq --exit-status 'type == "object"' "$fragment" > /dev/null 2>&1; then
+      fail "$fragment is not a JSON object"
+    fi
+    settings=$(jq --from-file "$merge_path" --argjson overlay "$(cat "$fragment")" <<< "$settings")
+  done
+  printf '%s\n' "$settings" | jq . > "$staging/settings.json"
+}
+
+compose_rules() {
+  local staging=$1
+  shift
+  local layer target
+  for layer in "$@"; do
+    if [ ! -d "$layer/rules" ]; then
+      continue
+    fi
+    target="$staging/rules/$(basename "$layer")"
+    mkdir -p "$target"
+    # Dereference, so every rule is a plain file: Claude Code skips a path-scoped
+    # rule whose symlink target lies outside the working directory.
+    cp -R -L "$layer/rules/." "$target/"
+  done
+  # Sources can be read-only (a Nix store path), and a later run must be able to
+  # delete what this one wrote.
+  chmod -R u+w "$staging/rules"
+}
+
+# Each file moves in with one rename. Each directory swaps with two, and the
+# replaced copy leaves with the staging directory.
+install_output() {
+  local staging=$1 output_dir=$2 name
+  for name in topics rules; do
+    if [ -e "$output_dir/$name" ]; then
+      mv "$output_dir/$name" "$staging/replaced-$name"
+    fi
+    mv "$staging/$name" "$output_dir/$name"
+  done
+  for name in CLAUDE.md settings.json manifest.json; do
+    mv -f "$staging/$name" "$output_dir/$name"
+  done
+}
+
+main() {
+  if [ "$#" -lt 2 ]; then
+    printf 'usage: compose <output-dir> <layer-dir>...\n' >&2
+    exit 2
+  fi
+  local output_dir=$1
+  shift
+  check_layers "$@"
+  mkdir -p "$output_dir"
+  staging=$(mktemp -d "$output_dir/.compose.XXXXXX")
+  trap 'rm -rf "$staging"' EXIT
+  mkdir -p "$staging/topics" "$staging/rules"
+  compose_guide "$staging" "$@"
+  compose_settings "$staging" "$@"
+  compose_rules "$staging" "$@"
+  install_output "$staging" "$output_dir"
+}
+
+main "$@"
