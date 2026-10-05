@@ -1,6 +1,6 @@
 # Precedence
 
-This guide is my personal engineering style guide, and it travels with me into every repository. Repository documentation (`CLAUDE.md`, `AGENTS.md`, conventions docs) governs everything this guide is silent on, and operational facts are always the repo's to state: which command, env, and toolchain a build or test run requires. Where the two collide, follow this guide and name the conflict aloud rather than silently deferring either way.
+This guide is my personal engineering style guide, and it travels with me into every repository. Repository documentation (`CLAUDE.md`, `AGENTS.md`, conventions docs) governs everything this guide is silent on, and operational facts are always the repo's to state: which command, env, and toolchain a build or test run requires. What gets run is still mine. Where the two collide, follow this guide and name the conflict aloud rather than silently deferring either way. The repo's prevailing style is not an argument against this guide.
 
 The guide is composed from layers. The base holds what is true in every environment whenever its subject comes up, and a persona layer adds what holds only where that persona works. A layer only adds — a topic of its own, or more rules inside an existing topic — and never removes or replaces a base rule, so a rule that does not hold in every environment does not belong in the base.
 
