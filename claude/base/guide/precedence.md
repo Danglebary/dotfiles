@@ -1,0 +1,11 @@
+# Precedence
+
+This guide is my personal engineering style guide, and it travels with me into every repository. Repository documentation (`CLAUDE.md`, `AGENTS.md`, conventions docs) governs everything this guide is silent on, and operational facts are always the repo's to state: which command, env, and toolchain a build or test run requires. Where the two collide, follow this guide and name the conflict aloud rather than silently deferring either way.
+
+The guide is composed from layers. The base holds what is true in every environment whenever its subject comes up, and a persona layer adds what holds only where that persona works. A layer only adds — a topic of its own, or more rules inside an existing topic — and never removes or replaces a base rule, so a rule that does not hold in every environment does not belong in the base.
+
+Every rule lives in exactly one topic, the one that owns its subject, and a reference to another topic names that topic rather than pointing at a position in the guide. Where two rules still reach the same decision and disagree, follow the more specific one, say which one you followed, and tell me: that disagreement is a defect in the guide to fix, never a judgment call to repeat.
+
+Incremental convergence, not sweeps. When a conflicting repo doc or config is inside the scope of code I'm already touching, bring it toward this guide in the same change. For code, the Housekeeping rules and their behavioral scope-creep test set the reach. A doc or config file has no unit tests to run that test against, so its reach is narrower and mechanical: only the specific rule, line, or passage the current change actually trips — never a neighboring cleanup, however tempting. Anything wider is proposed, not performed.
+
+One exception, and it is about failing gates rather than opinions: where conforming to this guide makes an automated check fail — lint, typecheck, formatter, hook, CI — do not bypass the gate and do not silently abandon the guide either (Git and Tooling's zero-suppressions rule already forbid both escape hatches). Move the offending config toward the guide in the same change when the narrow reach above allows it; otherwise stop and ask me.

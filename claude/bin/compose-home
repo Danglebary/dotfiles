@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Recomposes ~/.claude from the base layer and, when one is cloned at
+# ~/.claude/overlay, the persona overlay on top of it. Runs as a SessionStart
+# and a SessionEnd hook, so every session begins from the tracked layers, and
+# prints nothing on success because SessionStart hook output is injected into
+# the session's context.
+set -euo pipefail
+
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+claude_home="$HOME/.claude"
+layers=("$claude_home/base")
+if [ -d "$claude_home/overlay" ]; then
+  layers+=("$claude_home/overlay")
+fi
+exec bash "$script_dir/compose" "$claude_home" "${layers[@]}"

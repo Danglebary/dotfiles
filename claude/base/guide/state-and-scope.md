@@ -1,0 +1,7 @@
+# State and scope
+
+- **Smallest possible scope, fewest variables in play.** Declare at the point of use, never before needed, and don't leave variables around after — place-of-check to place-of-use gaps breed bugs. This is a rule about lifetime, not about inlining: it never argues for fusing operations to avoid naming an intermediate, which Statement shape requires.
+- **No duplicated state, no aliases** — one owner per fact, so copies can't drift out of sync.
+- **Every suspension point is a hazard**: an `await`, a yield, or a blocking call hands control away, and shared state may have shifted by the time you resume. Keep invariant-critical sections synchronous, and re-check invariants after resuming rather than trusting pre-suspension assertions.
+- **Simple signatures, low-dimensional returns.** Dimensionality at the call site is viral through the call chain: `void` beats `boolean`, `boolean` beats a value, a value beats an optional, and an optional beats throwing.
+- **Functions never modify their inputs.** A function needing a changed value returns a new one; where the language can mark parameters immutable, mark them, so a violation is a compile error rather than a review comment. Where a copy is taken specifically to avoid mutating an input, say so in a comment, because the copy looks redundant to anyone who has not noticed which operation mutates.
