@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/settings-merge.sh",
+            "command": "bash ~/.claude/bin/compose-home",
             "timeout": 10
           }
         ]
@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash ~/.claude/settings-merge.sh",
+            "command": "bash ~/.claude/bin/compose-home",
             "timeout": 10
           }
         ]
