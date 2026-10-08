@@ -5,6 +5,6 @@
 - **Assert arguments, return values, pre/postconditions, and invariants** — at least two assertions per function on average; a function must not operate blindly on data it has not checked.
 - **Pair assertions.** Enforce each property on at least two code paths: assert validity before writing, and again after reading back.
 - **Assert the positive space and the negative space** — what you expect, and what you expect never to happen; bugs live where data crosses the boundary between them.
-- **Split compound assertions** — two assert calls, not one conjunction, so a failure says precisely which half broke; a single-line `if (a) assert(b)` asserts an implication.
+- **Split compound assertions** — two assert calls, not one conjunction, so a failure says precisely which half broke; a single-line `if (a) assert(b)` asserts an implication. Naming the conjunction splits nothing: `assert(isValid)` over `isValid = a && b` still fails without saying which half broke. A disjunction is one claim — one of these holds — and stays a single call.
 - **Exhaustiveness is asserted twice.** Compile time: an exhaustive `match`/`switch` over the closed set, so a new variant is a compile error. Runtime backstop: an unreachable assertion in the fallthrough arm, so a value that escapes the compiler crashes instead of passing silently.
 - **A blatantly-true assertion beats a comment** where an invariant is critical and surprising.
