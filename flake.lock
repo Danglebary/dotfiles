@@ -1,21 +1,5 @@
 {
   "nodes": {
-    "claude-home": {
-      "flake": false,
-      "locked": {
-        "lastModified": 1791521546,
-        "narHash": "sha256-HigEZIN39WfQUpJdUUXOmntc0nP+vDaueLaRMVlQhdE=",
-        "owner": "Danglebary",
-        "repo": "claude-home",
-        "rev": "b2a72363fa1d5f44e3159a5b2c2c2f093c1254b6",
-        "type": "github"
-      },
-      "original": {
-        "owner": "Danglebary",
-        "repo": "claude-home",
-        "type": "github"
-      }
-    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -54,7 +38,6 @@
     },
     "root": {
       "inputs": {
-        "claude-home": "claude-home",
         "home-manager": "home-manager",
         "nixpkgs": "nixpkgs",
         "splice": "splice"

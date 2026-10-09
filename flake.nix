@@ -1,5 +1,5 @@
 {
-  description = "A software development environment as a home-manager module: the coding-agent tools and the claude-home Claude Code configuration.";
+  description = "A software development environment as a home-manager module: the coding-agent tools and the Claude Code configuration composed from claude/.";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -15,11 +15,6 @@
       url = "github:Danglebary/splice";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-
-    claude-home = {
-      url = "github:Danglebary/claude-home";
-      flake = false;
-    };
   };
 
   outputs =
@@ -28,7 +23,6 @@
       nixpkgs,
       home-manager,
       splice,
-      claude-home,
     }:
     let
       systems = [
@@ -68,6 +62,25 @@
           # evaluates but links a missing path or a broken package fails here.
           module = configuration.activationPackage;
 
+          # The scripts start with `#!/usr/bin/env bash`, which the build
+          # sandbox lacks, so the suite runs against a copy with its
+          # interpreters patched to store paths.
+          claude =
+            pkgs.runCommand "dotfiles-claude-tests"
+              {
+                nativeBuildInputs = [
+                  pkgs.bats
+                  pkgs.jq
+                ];
+              }
+              ''
+                cp --recursive ${./claude} claude
+                chmod --recursive u+w claude
+                patchShebangs claude
+                bats claude/tests
+                touch $out
+              '';
+
           format = pkgs.runCommand "dotfiles-format" { nativeBuildInputs = [ pkgs.nixfmt ]; } ''
             nixfmt --check ${self}/*.nix
             touch $out
@@ -75,7 +88,7 @@
         };
     in
     {
-      homeManagerModules.default = import ./home.nix { inherit nixpkgs splice claude-home; };
+      homeManagerModules.default = import ./home.nix { inherit nixpkgs splice; };
 
       checks = forEachSystem checksFor;
 

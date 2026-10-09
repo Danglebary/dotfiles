@@ -5,7 +5,6 @@
 {
   nixpkgs,
   splice,
-  claude-home,
 }:
 
 {
@@ -23,9 +22,11 @@ let
     config.allowUnfreePredicate = package: lib.getName package == "claude-code";
   };
 
+  claudeSource = ./claude;
+
   # Claude Code writes its state into ~/.claude and compose-home writes its
-  # output there, so the directory stays writable and only claude-home's inputs
-  # are links.
+  # output there, so the directory stays writable and only the composition's
+  # inputs are links.
   linkedPaths = [
     "base"
     "bin"
@@ -35,28 +36,30 @@ let
 
   linkedFile = path: {
     name = ".claude/${path}";
-    value.source = "${claude-home}/${path}";
+    value.source = "${claudeSource}/${path}";
   };
   linkedFiles = map linkedFile linkedPaths;
 
+  # A path appended to the copied directory is a string, which evaluation never
+  # checks against the tree.
   requiredPaths = linkedPaths ++ [ composePath ];
   requiredPathAssertion = path: {
-    assertion = builtins.pathExists "${claude-home}/${path}";
-    message = "claude-home carries no ${path}, which ~/.claude is composed from.";
+    assertion = builtins.pathExists (claudeSource + "/${path}");
+    message = "claude/ carries no ${path}, which ~/.claude is composed from.";
   };
 
   settingsFormat = pkgs.formats.json { };
   overlaySettings = config.claudeHome.overlay.settings;
-  overlaySettingsFile = settingsFormat.generate "claude-home-overlay-settings.json" overlaySettings;
+  overlaySettingsFile = settingsFormat.generate "claude-overlay-settings.json" overlaySettings;
 in
 {
   options.claudeHome.overlay.settings = lib.mkOption {
     type = settingsFormat.type;
     default = { };
     description = ''
-      A Claude Code settings fragment that compose-home merges over
-      claude-home's base layer, written to ~/.claude/overlay/settings.json.
-      Definitions from several modules merge into one fragment.
+      A Claude Code settings fragment that compose-home merges over the base
+      layer, written to ~/.claude/overlay/settings.json. Definitions from
+      several modules merge into one fragment.
     '';
   };
 
@@ -72,29 +75,16 @@ in
       splice.packages.${system}.default
     ];
 
-    # The plugin's hook runs the splice binary on every Bash call, so it is
-    # enabled beside the package that installs that binary. A marketplace
-    # declared in user settings is cloned at startup and the plugins enabled
-    # from it install without a prompt.
-    # https://code.claude.com/docs/en/settings-reference#extraknownmarketplaces — checked 2026-10-09
-    claudeHome.overlay.settings = {
-      extraKnownMarketplaces.splice.source = {
-        source = "github";
-        repo = "Danglebary/splice";
-      };
-      enabledPlugins."splice@splice" = true;
-    };
-
     home.file = lib.mkMerge [
       (lib.listToAttrs linkedFiles)
       { ".claude/overlay/settings.json".source = overlaySettingsFile; }
     ];
 
     # Composing at activation gives a machine its CLAUDE.md and settings.json
-    # before its first session, and applies a new claude-home or overlay at
-    # once rather than at the next session boundary.
+    # before its first session, and applies a new base layer or overlay at once
+    # rather than at the next session boundary.
     home.activation.composeClaudeHome = lib.hm.dag.entryAfter [ "linkGeneration" ] ''
-      run bash ${claude-home}/${composePath}
+      run bash ${claudeSource}/${composePath}
     '';
   };
 }
