@@ -49,18 +49,27 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
-          configuration = home-manager.lib.homeManagerConfiguration {
-            inherit pkgs;
-            modules = [
-              self.homeManagerModules.default
-              (checkHome pkgs)
-            ];
-          };
+          activationPackage =
+            module:
+            let
+              configuration = home-manager.lib.homeManagerConfiguration {
+                inherit pkgs;
+                modules = [
+                  module
+                  (checkHome pkgs)
+                ];
+              };
+            in
+            configuration.activationPackage;
         in
         {
           # Builds every package and the generated files, so a module that
           # evaluates but links a missing path or a broken package fails here.
-          module = configuration.activationPackage;
+          module = activationPackage self.homeManagerModules.default;
+
+          # The splice module is imported alone by a configuration that
+          # composes ~/.claude itself, so it builds without the default module.
+          splice = activationPackage self.homeManagerModules.splice;
 
           # The scripts start with `#!/usr/bin/env bash`, which the build
           # sandbox lacks, so the suite runs against a copy with its
@@ -89,6 +98,7 @@
     in
     {
       homeManagerModules.default = import ./home.nix { inherit nixpkgs splice; };
+      homeManagerModules.splice = import ./splice.nix { inherit splice; };
 
       checks = forEachSystem checksFor;
 
