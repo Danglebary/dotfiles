@@ -54,5 +54,16 @@
   "showThinkingSummaries": true,
   "skipWorkflowUsageWarning": true,
   "remoteControlAtStartup": false,
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "extraKnownMarketplaces": {
+    "splice": {
+      "source": {
+        "source": "github",
+        "repo": "Danglebary/splice"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "splice@splice": true
+  }
 }
