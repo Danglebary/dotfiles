@@ -1,0 +1,3 @@
+# Validating I/O
+
+- **Validate all I/O, in both directions, once, at the boundary.** Nothing enters or exits the process without a schema check — inbound before use, outbound before sending, at every I/O surface, not just external APIs. Anything that crosses in (API responses, queue payloads, database reads, config, file contents, cache hits) arrives untyped and is narrowed by that check before anything consumes it; a type annotation on external data is a claim, and validating is what makes it true. Validate where the data crosses, then pass the narrowed type inward — interior code trusts the structure that was checked at entry and keeps only its own relational assertions.
