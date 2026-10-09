@@ -1,0 +1,108 @@
+{
+  "nodes": {
+    "claude-home": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1791521546,
+        "narHash": "sha256-HigEZIN39WfQUpJdUUXOmntc0nP+vDaueLaRMVlQhdE=",
+        "owner": "Danglebary",
+        "repo": "claude-home",
+        "rev": "b2a72363fa1d5f44e3159a5b2c2c2f093c1254b6",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Danglebary",
+        "repo": "claude-home",
+        "type": "github"
+      }
+    },
+    "home-manager": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1791484883,
+        "narHash": "sha256-iKxFHJrg7Sltwhq3ssCZYQ4CFEDVvReVVuVuO9dj3sE=",
+        "owner": "nix-community",
+        "repo": "home-manager",
+        "rev": "dfadbe5162d5e86bc0808badec8f346f81b4b3f0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nix-community",
+        "repo": "home-manager",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1791456040,
+        "narHash": "sha256-H83yz/do+hjOO0uujHyH8RgtIQP2v7Mw+cLwcZK/xKc=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "e7439b6b14ad3cc35d05608ebca9bce01a25f5f8",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-unstable",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "claude-home": "claude-home",
+        "home-manager": "home-manager",
+        "nixpkgs": "nixpkgs",
+        "splice": "splice"
+      }
+    },
+    "rust-overlay": {
+      "inputs": {
+        "nixpkgs": [
+          "splice",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1791448976,
+        "narHash": "sha256-HJ4TEF3j7HmLYeEP/PtqjeiBX/6TppXB2qY53HcrWbs=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "f91010a5c1b6125b715eb78a84fb5dd8fb74a2b0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "splice": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "rust-overlay": "rust-overlay"
+      },
+      "locked": {
+        "lastModified": 1791554054,
+        "narHash": "sha256-0TLEwStN321oUQSHnWL+O1smnrAymAl1SELx4Ky9oeQ=",
+        "owner": "Danglebary",
+        "repo": "splice",
+        "rev": "3dcede143ec3252372aeced353cca53f47f3920b",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Danglebary",
+        "repo": "splice",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
