@@ -53,6 +53,8 @@ let
   overlaySettingsFile = settingsFormat.generate "claude-overlay-settings.json" overlaySettings;
 in
 {
+  imports = [ (import ./splice.nix { inherit splice; }) ];
+
   options.claudeHome.overlay.settings = lib.mkOption {
     type = settingsFormat.type;
     default = { };
@@ -72,7 +74,6 @@ in
       tools.gh
       tools.jq
       tools.bats
-      splice.packages.${system}.default
     ];
 
     home.file = lib.mkMerge [
