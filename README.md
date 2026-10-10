@@ -4,7 +4,7 @@ My software development environment, as a [home-manager](https://github.com/nix-
 
 ## What the module installs
 
-- The coding-agent tools: `claude-code`, `herdr`, `gh`, `jq`, `bats`, and [`splice`](https://github.com/Danglebary/splice). The base layer enables the splice Claude Code plugin, whose hook runs the `splice` binary on every Bash call.
+- The coding-agent tools: `claude-code`, `herdr`, `gh`, `jq`, `bats`, [`excerpt`](https://github.com/Danglebary/excerpt), and [`splice`](https://github.com/Danglebary/splice). The base layer enables both tools' Claude Code plugins: excerpt's skill teaches agents to read code by item, and splice's hook runs the `splice` binary on every Bash call.
 - `~/.claude` composed from [`claude/`](claude/): its `base/`, `bin/`, and status line script are linked in, the machine's overlay settings are written to `~/.claude/overlay/settings.json`, and `compose-home` runs on every activation. Everything else in `~/.claude` stays Claude Code's own. [`claude/README.md`](claude/README.md) covers the layers and how they compose.
 
 The packages come from this flake's own `nixpkgs`, pinned by `flake.lock`. A consumer that wants one package set makes it follow its own input.
@@ -26,7 +26,7 @@ home-manager.users.me = {
 };
 ```
 
-A configuration that composes `~/.claude` itself imports `dotfiles.homeManagerModules.splice` instead, which installs the `splice` binary and nothing else; the base layer's `settings.json` still enables the plugin that runs it.
+A configuration that composes `~/.claude` itself imports `dotfiles.homeManagerModules.excerpt` and `dotfiles.homeManagerModules.splice` instead, which install the two binaries and nothing else; the base layer's `settings.json` still enables the plugins that use them.
 
 A machine's own Claude Code settings go through `claudeHome.overlay.settings`. Every module's definitions merge into the one overlay fragment, which `compose-home` merges over the base layer:
 

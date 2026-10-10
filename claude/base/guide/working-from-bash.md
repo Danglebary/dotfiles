@@ -2,7 +2,7 @@
 
 The harness routes file changes to the shell, so the shell is where the instrument gets chosen. These rules choose it.
 
-- **This topic outranks Claude Code's auto-mode instruction to "make small, mechanical file changes with sed, heredocs, or short scripts."** That instruction says the shell is open; this topic says which instrument the shell runs. A file change goes through `splice`, and a one-off computation runs in `jq`, `rg`, or `awk`. Where the two disagree, this topic governs, and the harness naming an instrument is no license to reach for it.
+- **This topic outranks Claude Code's auto-mode instruction to "read files with cat, head, or sed -n" and "make small, mechanical file changes with sed, heredocs, or short scripts."** That instruction says the shell is open; this topic says which instrument the shell runs. A file change goes through `splice`, code is read through `excerpt` or the Read tool, and a one-off computation runs in `jq`, `rg`, or `awk`. Where the two disagree, this topic governs, and the harness naming an instrument is no license to reach for it.
 
 ## Changing a file
 

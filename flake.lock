@@ -1,5 +1,26 @@
 {
   "nodes": {
+    "excerpt": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "rust-overlay": "rust-overlay"
+      },
+      "locked": {
+        "lastModified": 1791667885,
+        "narHash": "sha256-20yKuukvqxm0Zjq0x4c3s+r3/jhATKnWgesbSMcN+fQ=",
+        "owner": "Danglebary",
+        "repo": "excerpt",
+        "rev": "ef1a9ca726892b679d33eb6ce643cc835cb1921e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Danglebary",
+        "repo": "excerpt",
+        "type": "github"
+      }
+    },
     "home-manager": {
       "inputs": {
         "nixpkgs": [
@@ -38,12 +59,34 @@
     },
     "root": {
       "inputs": {
+        "excerpt": "excerpt",
         "home-manager": "home-manager",
         "nixpkgs": "nixpkgs",
         "splice": "splice"
       }
     },
     "rust-overlay": {
+      "inputs": {
+        "nixpkgs": [
+          "excerpt",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1791448976,
+        "narHash": "sha256-HJ4TEF3j7HmLYeEP/PtqjeiBX/6TppXB2qY53HcrWbs=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "f91010a5c1b6125b715eb78a84fb5dd8fb74a2b0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "rust-overlay_2": {
       "inputs": {
         "nixpkgs": [
           "splice",
@@ -69,7 +112,7 @@
         "nixpkgs": [
           "nixpkgs"
         ],
-        "rust-overlay": "rust-overlay"
+        "rust-overlay": "rust-overlay_2"
       },
       "locked": {
         "lastModified": 1791653512,
