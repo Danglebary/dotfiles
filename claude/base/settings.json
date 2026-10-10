@@ -54,6 +54,7 @@
   "showThinkingSummaries": true,
   "skipWorkflowUsageWarning": true,
   "remoteControlAtStartup": false,
+  "idleCompaction": false,
   "skipAutoPermissionPrompt": true,
   "extraKnownMarketplaces": {
     "excerpt": {
