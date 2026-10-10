@@ -46,6 +46,8 @@ home-manager refuses to replace a file it did not create. On a machine where `~/
 
 `nix flake update` moves every input. The base layer names a model and each model needs a minimum `claude-code` release, so a model change in `claude/base/settings.json` lands with a `nixpkgs` that carries that release; a consumer that makes `nixpkgs` follow its own input moves that input alongside this one.
 
+A tool released from its own repository reaches the lock by pull request. Its release workflow sends this repository an `input-released` repository dispatch whose `client_payload` carries `input` (the flake input's name), `version`, and `rev` (the full hash of the commit the release tags), and `.github/workflows/update-input.yml` opens a pull request moving that input to that commit; `workflow_dispatch` takes the same three values by hand. The sender needs a fine-grained token with Contents write on this repository, and the update workflow pushes and opens the pull request with the `DOTFILES_TOKEN` secret, a token with Contents and Pull requests write here, so that CI runs on it.
+
 ## Checks
 
 ```sh
@@ -53,3 +55,5 @@ nix flake check
 ```
 
 It builds the module's whole activation package, every tool included, runs the `claude/tests` bats suite, and checks the formatting. `nix fmt -- *.nix` formats.
+
+CI runs it on every pull request and every push to `main`, on Linux and macOS.
