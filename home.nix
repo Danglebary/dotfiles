@@ -4,6 +4,7 @@
 # package set makes this flake's nixpkgs follow its own.
 {
   nixpkgs,
+  excerpt,
   splice,
 }:
 
@@ -53,7 +54,10 @@ let
   overlaySettingsFile = settingsFormat.generate "claude-overlay-settings.json" overlaySettings;
 in
 {
-  imports = [ (import ./splice.nix { inherit splice; }) ];
+  imports = [
+    (import ./excerpt.nix { inherit excerpt; })
+    (import ./splice.nix { inherit splice; })
+  ];
 
   options.claudeHome.overlay.settings = lib.mkOption {
     type = settingsFormat.type;

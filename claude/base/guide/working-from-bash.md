@@ -2,6 +2,8 @@
 
 The harness routes file changes to the shell, so the shell is where the instrument gets chosen. These rules choose it.
 
+- **This topic outranks Claude Code's auto-mode instruction to "read files with cat, head, or sed -n" and "make small, mechanical file changes with sed, heredocs, or short scripts."** That instruction says the shell is open; this topic says which instrument the shell runs. A file change goes through `splice`, code is read through `excerpt` or the Read tool, and a one-off computation runs in `jq`, `rg`, or `awk`. Where the two disagree, this topic governs, and the harness naming an instrument is no license to reach for it.
+
 ## Changing a file
 
 - **A change to an existing file made from Bash goes through `splice`, and no other in-place editor is reached for.** `splice` applies literal, count-checked hunks across files, writes every file or none, and is silent on success. `sed -i`, `perl -i`, `awk -i inplace`, and a Python or Node script that reads a file and writes it back are the shapes it replaces. The splice plugin's guard blocks each of them from Bash and its refusal carries an example, so there is nothing to look up at the moment of use, and `splice --help` is the whole grammar.
@@ -17,6 +19,7 @@ The harness routes file changes to the shell, so the shell is where the instrume
 
 - **`cat > path <<'EOF'` creates a file and `cat >> path <<'EOF'` appends to one**, and the guard lets both through. `splice` carries the same two writes as `@@ create`, which refuses a path that already exists, and `@@ append`, whose `jsonl` form checks that each line is JSON. Reach for those where the write belongs to a batch that must land whole, or where overwriting an existing file would be the failure.
 - **A value computed at run time reaches the script through the heredoc.** An unquoted `<<EOF` lets the shell substitute a variable into a `+` line. A script that carries any other `$` or a backtick is written to a file with the value substituted, and passed as `--script PATH`, so nothing else in it is expanded.
+- **A one-off computation from Bash never runs in Python, whether or not an interpreter is installed.** JSON goes through `jq`, text through `rg` and `awk`, and a computation that outgrows one pipeline becomes a script in the project's primary language, per Tooling. A `python3 - <<'EOF'` is the shape this replaces. On a machine without the interpreter it fails before doing anything, and piped into `jq`, that failure reads as an empty result.
 
 ## Common operations
 

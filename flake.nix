@@ -11,6 +11,11 @@
       inputs.nixpkgs.follows = "nixpkgs";
     };
 
+    excerpt = {
+      url = "github:Danglebary/excerpt";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
     splice = {
       url = "github:Danglebary/splice";
       inputs.nixpkgs.follows = "nixpkgs";
@@ -22,6 +27,7 @@
       self,
       nixpkgs,
       home-manager,
+      excerpt,
       splice,
     }:
     let
@@ -67,6 +73,10 @@
           # evaluates but links a missing path or a broken package fails here.
           module = activationPackage self.homeManagerModules.default;
 
+          # The excerpt module is imported alone by a configuration that
+          # composes ~/.claude itself, so it builds without the default module.
+          excerpt = activationPackage self.homeManagerModules.excerpt;
+
           # The splice module is imported alone by a configuration that
           # composes ~/.claude itself, so it builds without the default module.
           splice = activationPackage self.homeManagerModules.splice;
@@ -97,7 +107,8 @@
         };
     in
     {
-      homeManagerModules.default = import ./home.nix { inherit nixpkgs splice; };
+      homeManagerModules.default = import ./home.nix { inherit nixpkgs excerpt splice; };
+      homeManagerModules.excerpt = import ./excerpt.nix { inherit excerpt; };
       homeManagerModules.splice = import ./splice.nix { inherit splice; };
 
       checks = forEachSystem checksFor;

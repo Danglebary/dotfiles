@@ -56,6 +56,12 @@
   "remoteControlAtStartup": false,
   "skipAutoPermissionPrompt": true,
   "extraKnownMarketplaces": {
+    "excerpt": {
+      "source": {
+        "source": "github",
+        "repo": "Danglebary/excerpt"
+      }
+    },
     "splice": {
       "source": {
         "source": "github",
@@ -64,6 +70,7 @@
     }
   },
   "enabledPlugins": {
+    "excerpt@excerpt": true,
     "splice@splice": true
   }
 }
