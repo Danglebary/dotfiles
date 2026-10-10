@@ -1,0 +1,111 @@
+# Opens a pull request moving one flake input to a released commit. The `input-released`
+# dispatch and `workflow_dispatch` carry the same three values: the input's name, the
+# released version, and the commit the release tags. `nix flake update` locks the head of
+# the input's branch, so a run whose lock lands anywhere but the released commit fails
+# rather than titling later commits with the release.
+#
+# The pull request is pushed and opened with DOTFILES_TOKEN, a fine-grained token with
+# Contents and Pull requests write on this repository, because a pull request opened with
+# the workflow's own token starts no CI run.
+# https://docs.github.com/en/actions/writing-workflows/choosing-when-your-workflow-runs/triggering-a-workflow — checked 2026-10-10
+name: Update input
+
+on:
+  repository_dispatch:
+    types: [input-released]
+  workflow_dispatch:
+    inputs:
+      input:
+        description: The flake input to update
+        required: true
+        type: string
+      version:
+        description: The released version
+        required: true
+        type: string
+      rev:
+        description: The full commit hash the release tags
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      INPUT: ${{ github.event.client_payload.input || inputs.input }}
+      VERSION: ${{ github.event.client_payload.version || inputs.version }}
+      REV: ${{ github.event.client_payload.rev || inputs.rev }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          token: ${{ secrets.DOTFILES_TOKEN }}
+      - uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+          extra_nix_config: |
+            experimental-features = nix-command flakes
+
+      # Stdout carries workflow commands, so a payload value reaches a message only after
+      # its pattern has passed.
+      - name: Validate the payload
+        run: |
+          if [[ ! "$INPUT" =~ ^[A-Za-z0-9_-]+$ ]]; then
+            echo "::error::The input is not a flake input name."
+            exit 1
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::The version is not a semantic version."
+            exit 1
+          fi
+          if [[ ! "$REV" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::The rev is not a full commit hash."
+            exit 1
+          fi
+          node=$(jq --raw-output --arg input "$INPUT" '.nodes.root.inputs[$input] // empty' flake.lock)
+          if [[ -z "$node" ]]; then
+            echo "::error::The flake has no input named $INPUT."
+            exit 1
+          fi
+          type=$(jq --raw-output --arg node "$node" '.nodes[$node].locked.type' flake.lock)
+          if [[ "$type" != github ]]; then
+            echo "::error::The $INPUT input is locked as $type, and only github inputs are updated here."
+            exit 1
+          fi
+          echo "NODE=$node" >> "$GITHUB_ENV"
+
+      - name: Update the lock
+        id: update
+        run: |
+          nix flake update "$INPUT"
+          locked=$(jq --raw-output --arg node "$NODE" '.nodes[$node].locked.rev' flake.lock)
+          if [[ "$locked" != "$REV" ]]; then
+            echo "::error::The lock holds $locked rather than the released $REV; the input's branch has moved since the release."
+            exit 1
+          fi
+          if git diff --quiet -- flake.lock; then
+            echo "::notice::The lock already holds $INPUT $VERSION."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open the pull request
+        if: steps.update.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.DOTFILES_TOKEN }}
+        run: |
+          owner=$(jq --raw-output --arg node "$NODE" '.nodes[$node].locked.owner' flake.lock)
+          repo=$(jq --raw-output --arg node "$NODE" '.nodes[$node].locked.repo' flake.lock)
+          branch="update-$INPUT-$VERSION"
+          title="Update $INPUT to $VERSION"
+          body=$(printf "Moves the \`%s\` input to %s/%s@%s, released as %s. Only the lock changes." "$INPUT" "$owner" "$repo" "$REV" "$VERSION")
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch --create "$branch"
+          git commit --quiet --message "$title" --message "$body" -- flake.lock
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" --title "$title" --body "$body"
