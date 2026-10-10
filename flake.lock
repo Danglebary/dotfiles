@@ -72,11 +72,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1791648652,
-        "narHash": "sha256-tipIS+EgackT+KYigSXrNeBTJSbzQMP+SGbeh44Bjh8=",
+        "lastModified": 1791653512,
+        "narHash": "sha256-pVwOWDzEhc/GfhEZkkjq9IjxzsIaZuosxb7l8M9kN8k=",
         "owner": "Danglebary",
         "repo": "splice",
-        "rev": "5073e036640abc43e4954ed7aea31b7eb4bf5f8c",
+        "rev": "ff515f8b9e559553204c737fd2de4e696705c535",
         "type": "github"
       },
       "original": {
