@@ -26,7 +26,7 @@ home-manager.users.me = {
 };
 ```
 
-A configuration that composes `~/.claude` itself imports `dotfiles.homeManagerModules.excerpt` and `dotfiles.homeManagerModules.splice` instead, which install the two binaries and nothing else; the base layer's `settings.json` still enables the plugins that use them.
+A configuration that composes `~/.claude` itself imports `dotfiles.homeManagerModules.pluginTools` instead, which installs the binary of every plugin the base layer enables and nothing else; the base layer's `settings.json` still enables the plugins, and `nix flake check` fails on an enabled plugin with no binary in that module.
 
 A machine's own Claude Code settings go through `claudeHome.overlay.settings`. Every module's definitions merge into the one overlay fragment, which `compose-home` merges over the base layer:
 

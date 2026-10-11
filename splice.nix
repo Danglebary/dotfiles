@@ -1,6 +1,4 @@
-# The splice binary alone, for a home-manager configuration that composes
-# ~/.claude itself and so cannot import the default module. The base layer's
-# splice plugin runs this binary on every Bash call.
+# The splice binary. The base layer's splice plugin runs it on every Bash call.
 { splice }:
 
 { pkgs, ... }:
