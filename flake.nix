@@ -39,6 +39,20 @@
       ];
       forEachSystem = nixpkgs.lib.genAttrs systems;
 
+      pluginToolModules = import ./plugin-tools.nix { inherit excerpt splice; };
+
+      # Every plugin the base layer enables, by name, with its marketplace dropped.
+      basePluginNames =
+        let
+          baseSettings = builtins.fromJSON (builtins.readFile ./claude/base/settings.json);
+          enabledPlugins = nixpkgs.lib.filterAttrs (_: enabled: enabled) baseSettings.enabledPlugins;
+          pluginIds = builtins.attrNames enabledPlugins;
+        in
+        map (id: builtins.head (nixpkgs.lib.splitString "@" id)) pluginIds;
+      pluginsWithoutTools = builtins.filter (
+        name: !(builtins.hasAttr name pluginToolModules)
+      ) basePluginNames;
+
       # A home directory for the module check, on the platform's own layout.
       checkHome =
         pkgs:
@@ -73,13 +87,14 @@
           # evaluates but links a missing path or a broken package fails here.
           module = activationPackage self.homeManagerModules.default;
 
-          # The excerpt module is imported alone by a configuration that
-          # composes ~/.claude itself, so it builds without the default module.
-          excerpt = activationPackage self.homeManagerModules.excerpt;
-
-          # The splice module is imported alone by a configuration that
-          # composes ~/.claude itself, so it builds without the default module.
-          splice = activationPackage self.homeManagerModules.splice;
+          # The plugin tools are imported alone by a configuration that composes
+          # ~/.claude itself, so they build without the default module, and a
+          # plugin the base layer enables with no binary among them fails here.
+          pluginTools =
+            if pluginsWithoutTools == [ ] then
+              activationPackage self.homeManagerModules.pluginTools
+            else
+              throw "claude/base/settings.json enables ${builtins.concatStringsSep ", " pluginsWithoutTools}, which plugin-tools.nix carries no binary for.";
 
           # The scripts start with `#!/usr/bin/env bash`, which the build
           # sandbox lacks, so the suite runs against a copy with its
@@ -107,9 +122,15 @@
         };
     in
     {
-      homeManagerModules.default = import ./home.nix { inherit nixpkgs excerpt splice; };
-      homeManagerModules.excerpt = import ./excerpt.nix { inherit excerpt; };
-      homeManagerModules.splice = import ./splice.nix { inherit splice; };
+      homeManagerModules.default = import ./home.nix {
+        inherit nixpkgs;
+        inherit (self.homeManagerModules) pluginTools;
+      };
+      homeManagerModules.pluginTools = {
+        imports = builtins.attrValues pluginToolModules;
+      };
+      homeManagerModules.excerpt = pluginToolModules.excerpt;
+      homeManagerModules.splice = pluginToolModules.splice;
 
       checks = forEachSystem checksFor;
 
