@@ -129,8 +129,6 @@
       homeManagerModules.pluginTools = {
         imports = builtins.attrValues pluginToolModules;
       };
-      homeManagerModules.excerpt = pluginToolModules.excerpt;
-      homeManagerModules.splice = pluginToolModules.splice;
 
       checks = forEachSystem checksFor;
 
