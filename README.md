@@ -5,6 +5,7 @@ My software development environment, as a [home-manager](https://github.com/nix-
 ## What the module installs
 
 - The coding-agent tools: `claude-code`, `herdr`, `gh`, `jq`, `bats`, [`excerpt`](https://github.com/Danglebary/excerpt), and [`splice`](https://github.com/Danglebary/splice). The base layer enables both tools' Claude Code plugins: excerpt's skill teaches agents to read code by item, and splice's hook runs the `splice` binary on every Bash call.
+- This repository's own Claude Code plugin, `dotfiles`, offered by the marketplace at [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) and enabled by the base layer. Its mod replaces the steer in Claude Code's auto-mode reminder, the paragraph sending the model to `cat`, `sed`, and short scripts for reading and editing files, with the instruments the guide's Working from Bash topic names. Claude Code installs it from this repository on GitHub with `autoUpdate` on, so it follows `main` rather than a consumer's lock of this flake.
 - `~/.claude` composed from [`claude/`](claude/): its `base/`, `bin/`, and status line script are linked in, the machine's overlay settings are written to `~/.claude/overlay/settings.json`, and `compose-home` runs on every activation. Everything else in `~/.claude` stays Claude Code's own. [`claude/README.md`](claude/README.md) covers the layers and how they compose.
 
 The packages come from this flake's own `nixpkgs`, pinned by `flake.lock`. A consumer that wants one package set makes it follow its own input.
@@ -48,6 +49,8 @@ home-manager refuses to replace a file it did not create. On a machine where `~/
 
 A tool released from its own repository reaches the lock by pull request. Its release workflow sends this repository an `input-released` repository dispatch whose `client_payload` carries `input` (the flake input's name), `version`, and `rev` (the full hash of the commit the release tags), and `.github/workflows/update-input.yml` opens a pull request moving that input to that commit; `workflow_dispatch` takes the same three values by hand. The sender needs a fine-grained token with Contents write on this repository, and the update workflow pushes and opens the pull request with the `DOTFILES_TOKEN` secret, a token with Contents and Pull requests write here, so that CI runs on it.
 
+Where the base layer installs the tool's plugin from a marketplace of the input's name, the same pull request moves that marketplace's `ref` to the release's tag, `v<version>`, and Claude Code, with the marketplace's `autoUpdate` on, fetches the plugin at that tag. `nix flake check` fails while a plugin's `ref` names any tag but its pinned binary's release, so the skills and hooks a plugin ships always describe the binary installed beside them.
+
 ## Checks
 
 ```sh
@@ -55,5 +58,13 @@ nix flake check
 ```
 
 It builds the module's whole activation package, every tool included, runs the `claude/tests` bats suite, and checks the formatting. `nix fmt -- *.nix` formats.
+
+It also runs Claude Code's own validation over the marketplace and the plugin, with warnings failing it. The plugin's mod tests run outside it, through Claude Code's test command:
+
+```sh
+claude plugin test claude/plugin
+```
+
+A change under `claude/plugin/` raises the `version` in its `plugin.json`: an installed copy updates when that version moves.
 
 CI runs it on every pull request and every push to `main`, on x86_64 Linux.

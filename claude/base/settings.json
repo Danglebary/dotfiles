@@ -57,20 +57,32 @@
   "idleCompaction": false,
   "skipAutoPermissionPrompt": true,
   "extraKnownMarketplaces": {
+    "dotfiles": {
+      "source": {
+        "source": "github",
+        "repo": "Danglebary/dotfiles"
+      },
+      "autoUpdate": true
+    },
     "excerpt": {
       "source": {
         "source": "github",
-        "repo": "Danglebary/excerpt"
-      }
+        "repo": "Danglebary/excerpt",
+        "ref": "v0.2.0"
+      },
+      "autoUpdate": true
     },
     "splice": {
       "source": {
         "source": "github",
-        "repo": "Danglebary/splice"
-      }
+        "repo": "Danglebary/splice",
+        "ref": "v0.5.0"
+      },
+      "autoUpdate": true
     }
   },
   "enabledPlugins": {
+    "dotfiles@dotfiles": true,
     "excerpt@excerpt": true,
     "splice@splice": true
   }
