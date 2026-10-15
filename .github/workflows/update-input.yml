@@ -1,4 +1,6 @@
-# Opens a pull request moving one flake input to a released commit. The `input-released`
+# Opens a pull request moving one flake input to a released commit, and, where the base
+# layer installs a plugin from a marketplace of the input's name, that marketplace's ref
+# to the release's tag, so the binary and the plugin move in one commit. The `input-released`
 # dispatch and `workflow_dispatch` carry the same three values: the input's name, the
 # released version, and the commit the release tags. `nix flake update` locks the head of
 # the input's branch, so a run whose lock lands anywhere but the released commit fails
@@ -93,19 +95,39 @@ jobs:
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # The release workflows tag `v<version>` at the released commit, the commit the lock
+      # step above confirmed.
+      - name: Move the plugin's ref
+        id: ref
+        if: steps.update.outputs.changed == 'true'
+        run: |
+          settings=claude/base/settings.json
+          if jq --exit-status --arg input "$INPUT" '.extraKnownMarketplaces | has($input)' "$settings" > /dev/null; then
+            jq --indent 2 --arg input "$INPUT" --arg ref "v$VERSION" '.extraKnownMarketplaces[$input].source.ref = $ref' "$settings" > "$RUNNER_TEMP/settings.json"
+            cp "$RUNNER_TEMP/settings.json" "$settings"
+            echo "moved=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "moved=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Open the pull request
         if: steps.update.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.DOTFILES_TOKEN }}
+          MOVED: ${{ steps.ref.outputs.moved }}
         run: |
           owner=$(jq --raw-output --arg node "$NODE" '.nodes[$node].locked.owner' flake.lock)
           repo=$(jq --raw-output --arg node "$NODE" '.nodes[$node].locked.repo' flake.lock)
           branch="update-$INPUT-$VERSION"
           title="Update $INPUT to $VERSION"
-          body=$(printf "Moves the \`%s\` input to %s/%s@%s, released as %s. Only the lock changes." "$INPUT" "$owner" "$repo" "$REV" "$VERSION")
+          if [[ "$MOVED" == true ]]; then
+            body=$(printf "Moves the \`%s\` input to %s/%s@%s, released as %s, and installs its plugin from the release's tag, v%s." "$INPUT" "$owner" "$repo" "$REV" "$VERSION" "$VERSION")
+          else
+            body=$(printf "Moves the \`%s\` input to %s/%s@%s, released as %s. Only the lock changes." "$INPUT" "$owner" "$repo" "$REV" "$VERSION")
+          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git switch --create "$branch"
-          git commit --quiet --message "$title" --message "$body" -- flake.lock
+          git commit --quiet --message "$title" --message "$body" -- flake.lock claude/base/settings.json
           git push origin "$branch"
           gh pr create --base main --head "$branch" --title "$title" --body "$body"

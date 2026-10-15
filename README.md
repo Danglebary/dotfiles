@@ -48,6 +48,8 @@ home-manager refuses to replace a file it did not create. On a machine where `~/
 
 A tool released from its own repository reaches the lock by pull request. Its release workflow sends this repository an `input-released` repository dispatch whose `client_payload` carries `input` (the flake input's name), `version`, and `rev` (the full hash of the commit the release tags), and `.github/workflows/update-input.yml` opens a pull request moving that input to that commit; `workflow_dispatch` takes the same three values by hand. The sender needs a fine-grained token with Contents write on this repository, and the update workflow pushes and opens the pull request with the `DOTFILES_TOKEN` secret, a token with Contents and Pull requests write here, so that CI runs on it.
 
+Where the base layer installs the tool's plugin from a marketplace of the input's name, the same pull request moves that marketplace's `ref` to the release's tag, `v<version>`, and Claude Code, with the marketplace's `autoUpdate` on, fetches the plugin at that tag. `nix flake check` fails while a plugin's `ref` names any tag but its pinned binary's release, so the skills and hooks a plugin ships always describe the binary installed beside them.
+
 ## Checks
 
 ```sh
