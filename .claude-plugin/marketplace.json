@@ -1,0 +1,12 @@
+{
+  "name": "dotfiles",
+  "description": "The Claude Code plugins that ship with these dotfiles.",
+  "owner": { "name": "Danglebary" },
+  "plugins": [
+    {
+      "name": "dotfiles",
+      "source": "./claude/plugin",
+      "description": "Mods that bring what Claude Code tells the model in line with the guide composed from claude/base."
+    }
+  ]
+}

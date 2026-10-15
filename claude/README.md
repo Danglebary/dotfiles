@@ -8,7 +8,8 @@ My global [Claude Code](https://claude.com/claude-code) configuration, which thi
 - `bin/compose` — composes Claude Code's configuration from an ordered list of layers
 - `bin/compose-home` — the hook entry point: composes `~/.claude` from `base/` and, when present, `overlay/`
 - `bin/merge-settings.jq` — the settings merge `compose` applies
-- `tests/` — the [bats](https://github.com/bats-core/bats-core) suite for both scripts
+- `plugin/` — the `dotfiles` plugin the repository's marketplace offers: its mods under `hooks/` and their tests under `tests/`
+- `tests/` — the [bats](https://github.com/bats-core/bats-core) suite for both scripts, and the check holding the plugin's auto-mode replacement to the Working from Bash topic
 - `statusline-command.sh` — the script the statusline setting points at
 
 The module links `base/`, `bin/`, and `statusline-command.sh` into `~/.claude`. `compose` writes `CLAUDE.md`, `settings.json`, `rules/`, `topics/`, and `manifest.json` beside those links, and everything else in the directory is Claude Code's own state.
