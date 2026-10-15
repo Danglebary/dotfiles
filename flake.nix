@@ -23,7 +23,7 @@
   };
 
   outputs =
-    {
+    inputs@{
       self,
       nixpkgs,
       home-manager,
@@ -57,6 +57,18 @@
       pluginsWithoutTools = builtins.filter (
         name: !(builtins.hasAttr name pluginToolModules)
       ) basePluginNames;
+
+      baseMarketplaces =
+        (builtins.fromJSON (builtins.readFile ./claude/base/settings.json)).extraKnownMarketplaces;
+      pluginRefMismatches =
+        system:
+        let
+          expectedRef = name: "v${inputs.${name}.packages.${system}.default.version}";
+          declaredRef = name: baseMarketplaces.${name}.source.ref or "no ref";
+          isMismatched = name: declaredRef name != expectedRef name;
+          describe = name: "${name} at ${declaredRef name} where the flake pins ${expectedRef name}";
+        in
+        map describe (builtins.filter isMismatched (builtins.attrNames pluginToolModules));
 
       # A home directory for the module check, on the platform's own layout.
       checkHome =
@@ -105,6 +117,15 @@
               activationPackage self.homeManagerModules.pluginTools
             else
               throw "claude/base/settings.json enables ${builtins.concatStringsSep ", " pluginsWithoutTools}, which plugin-tools.nix carries no binary for.";
+
+          # A plugin whose binary this flake pins installs from its marketplace at
+          # the tag that released that binary, so the skills and hooks it ships
+          # describe the binary installed beside them.
+          pluginRefs =
+            if pluginRefMismatches system == [ ] then
+              pkgs.runCommand "dotfiles-plugin-refs" { } "touch $out"
+            else
+              throw "claude/base/settings.json installs ${builtins.concatStringsSep ", " (pluginRefMismatches system)}.";
 
           # The scripts start with `#!/usr/bin/env bash`, which the build
           # sandbox lacks, so the suite runs against a copy with its
