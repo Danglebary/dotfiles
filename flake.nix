@@ -41,12 +41,17 @@
 
       pluginToolModules = import ./plugin-tools.nix { inherit excerpt splice; };
 
-      # Every plugin the base layer enables, by name, with its marketplace dropped.
+      ownMarketplace = (builtins.fromJSON (builtins.readFile ./.claude-plugin/marketplace.json)).name;
+
+      # Every plugin the base layer enables from another repository's
+      # marketplace, by name, with its marketplace dropped. A plugin from this
+      # repository's own marketplace ships in this tree and is held to no binary.
       basePluginNames =
         let
           baseSettings = builtins.fromJSON (builtins.readFile ./claude/base/settings.json);
           enabledPlugins = nixpkgs.lib.filterAttrs (_: enabled: enabled) baseSettings.enabledPlugins;
-          pluginIds = builtins.attrNames enabledPlugins;
+          isForeign = id: !(nixpkgs.lib.hasSuffix "@${ownMarketplace}" id);
+          pluginIds = builtins.filter isForeign (builtins.attrNames enabledPlugins);
         in
         map (id: builtins.head (nixpkgs.lib.splitString "@" id)) pluginIds;
       pluginsWithoutTools = builtins.filter (
@@ -81,6 +86,11 @@
         system:
         let
           pkgs = nixpkgs.legacyPackages.${system};
+          # Claude Code is unfree, and the plugin check runs it.
+          unfreePkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfreePredicate = package: nixpkgs.lib.getName package == "claude-code";
+          };
           activationPackage =
             module:
             let
@@ -140,6 +150,18 @@
             nixfmt --check ${self}/*.nix
             touch $out
           '';
+
+          # Claude Code's own check of the marketplace and the plugin it offers,
+          # with warnings failing it. Claude Code writes state under HOME, which
+          # the sandbox leaves unwritable.
+          plugin =
+            unfreePkgs.runCommand "dotfiles-plugin" { nativeBuildInputs = [ unfreePkgs.claude-code ]; }
+              ''
+                export HOME=$TMPDIR
+                claude plugin validate --strict ${self}
+                claude plugin validate --strict ${self}/claude/plugin
+                touch $out
+              '';
         };
     in
     {
