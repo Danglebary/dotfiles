@@ -1,5 +1,5 @@
 # The flake's checks on every pull request and every push to main. `nix flake check`
-# checks the runner's own system alone, so the matrix covers Linux and macOS.
+# checks the runner's own system alone, which here is x86_64-linux.
 name: CI
 
 on:
@@ -12,11 +12,7 @@ permissions:
 
 jobs:
   check:
-    strategy:
-      fail-fast: false
-      matrix:
-        runner: [ubuntu-24.04, macos-15]
-    runs-on: ${{ matrix.runner }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

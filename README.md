@@ -67,4 +67,4 @@ claude plugin test claude/plugin
 
 A change under `claude/plugin/` raises the `version` in its `plugin.json`: an installed copy updates when that version moves.
 
-CI runs it on every pull request and every push to `main`, on Linux and macOS.
+CI runs it on every pull request and every push to `main`, on x86_64 Linux.
