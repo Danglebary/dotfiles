@@ -56,4 +56,4 @@ nix flake check
 
 It builds the module's whole activation package, every tool included, runs the `claude/tests` bats suite, and checks the formatting. `nix fmt -- *.nix` formats.
 
-CI runs it on every pull request and every push to `main`, on Linux and macOS.
+CI runs it on every pull request and every push to `main`, on x86_64 Linux.
