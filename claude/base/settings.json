@@ -44,10 +44,25 @@
     ]
   },
   "permissions": {
+    "allow": [
+      "Bash(gh repo view:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git status:*)"
+    ],
     "ask": [
       "Bash(gh pr merge:*)",
       "Bash(git push --force:*)",
       "Bash(git push -f:*)"
+    ]
+  },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Read-Only Inspection: A command built only from read-only tools — git status, log, show, diff, and rev-list; gh repo view; rg without --pre; ls; find without -delete or -exec; print-only awk; jq; cat, head, tail, and wc on files that hold no credentials; a project CLI's documented read verbs — that writes nothing beyond stdout or the session scratchpad is allowed. It is judged on its own content: a denied, approved, or attempted action earlier in the transcript does not carry its category over to a later read.",
+      "Credential Presence Checks: Testing whether a secret file exists or is readable (test -r, test -e, stat, ls -l), or whether an environment variable is set ([ -n \"${VAR:-}\" ]), is allowed when no part of the command prints, copies, or transmits the value.",
+      "Working-Tree Edits From Bash: Editing, appending to, or removing lines from files inside the session's repository working tree through Bash — splice, a heredoc append — is a Local Operation exactly as the Edit tool is: git restores it, and a versioned file in the working tree is not a shared resource. Files that configure the agent itself (anything under .claude/, settings files, git hooks) are excluded."
     ]
   },
   "tui": "fullscreen",
