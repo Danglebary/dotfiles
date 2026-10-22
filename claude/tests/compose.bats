@@ -17,6 +17,37 @@ write() {
   printf '%s\n' "$2" > "$layers/$1"
 }
 
+# Every file a composition of write_full_layer's fixture installs.
+OUTPUTS=(CLAUDE.md settings.json manifest.json topics/git.md rules/base/typescript/assertions.md)
+
+write_full_layer() {
+  write base/guide/git.md '# Git'
+  write base/rules/typescript/assertions.md 'Use the assert helpers.'
+  write base/settings.json '{"model": "a"}'
+}
+
+# age <path under $out>... dates each file before a marker, so
+# refute_rewritten can tell whether a later run wrote it again.
+age() {
+  local path
+  for path in "$@"; do
+    touch -t 200001010000 "$out/$path"
+  done
+  touch -t 200101010000 "$BATS_TEST_TMPDIR/marker"
+}
+
+# refute_rewritten <path under $out>... fails naming the first file written
+# since age dated it.
+refute_rewritten() {
+  local path
+  for path in "$@"; do
+    if [ "$out/$path" -nt "$BATS_TEST_TMPDIR/marker" ]; then
+      printf '%s was rewritten\n' "$path"
+      return 1
+    fi
+  done
+}
+
 @test "a single layer's topics compose in alphabetical order" {
   write base/guide/testing.md $'# Testing\n\n- Test behavior.'
   write base/guide/git.md $'# Git\n\n- Never force push.'
@@ -126,16 +157,20 @@ write() {
   [ "$(cat "$out/rules/base/typescript/assertions.md")" = 'Use the assert helpers.' ]
 }
 
-@test "rules copied from a read-only layer are replaced on the next run" {
+@test "rules copied from a read-only layer are replaced when they change" {
   write base/guide/git.md '# Git'
   write base/rules/typescript/assertions.md 'Use the assert helpers.'
   chmod -R a-w "$layers/base/rules"
   "$COMPOSE" "$out" "$layers/base"
+  chmod -R u+w "$layers/base/rules"
+  write base/rules/typescript/assertions.md 'Use the shared assert helpers.'
+  chmod -R a-w "$layers/base/rules"
 
   run "$COMPOSE" "$out" "$layers/base"
 
   chmod -R u+w "$layers/base/rules"
   [ "$status" -eq 0 ]
+  [ "$(cat "$out/rules/base/typescript/assertions.md")" = 'Use the shared assert helpers.' ]
   [ -z "$(find "$out" -maxdepth 1 -name '.compose.*')" ]
 }
 
@@ -182,6 +217,48 @@ write() {
 
   [ "$status" -eq 0 ]
   [ "$(cat "$out/history.jsonl")" = 'state' ]
+}
+
+@test "a run that changes no content rewrites no file" {
+  write_full_layer
+  "$COMPOSE" "$out" "$layers/base"
+  age "${OUTPUTS[@]}"
+
+  run "$COMPOSE" "$out" "$layers/base"
+
+  [ "$status" -eq 0 ]
+  refute_rewritten "${OUTPUTS[@]}"
+}
+
+@test "a run rewrites the output whose content changed and leaves the others" {
+  write_full_layer
+  "$COMPOSE" "$out" "$layers/base"
+  age "${OUTPUTS[@]}"
+  write base/settings.json '{"model": "b"}'
+
+  run "$COMPOSE" "$out" "$layers/base"
+
+  [ "$status" -eq 0 ]
+  [ "$(jq --raw-output .model "$out/settings.json")" = 'b' ]
+  refute_rewritten CLAUDE.md manifest.json topics/git.md rules/base/typescript/assertions.md
+}
+
+@test "an output edited since the last run is restored to the layers' content" {
+  write_full_layer
+  "$COMPOSE" "$out" "$layers/base"
+  local output_path expected
+  for output_path in "${OUTPUTS[@]}"; do
+    expected=$(cat "$out/$output_path")
+    printf 'edited\n' >> "$out/$output_path"
+
+    run "$COMPOSE" "$out" "$layers/base"
+
+    [ "$status" -eq 0 ]
+    if [ "$(cat "$out/$output_path")" != "$expected" ]; then
+      printf '%s kept its edit\n' "$output_path"
+      return 1
+    fi
+  done
 }
 
 @test "a refused run leaves the previous output untouched" {
