@@ -16,6 +16,12 @@
 #
 # Everything is validated and built in a staging directory first, so a refused
 # run changes nothing.
+#
+# An output already holding exactly its staged content stays in place, so a run
+# that changes no content writes no file. A running Claude Code session reports
+# every file it has read whose modification time moves ("This command modified
+# N files you've previously read: …"), so rewriting identical bytes shows every
+# open session a change that is not one.
 set -euo pipefail
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -142,17 +148,39 @@ compose_rules() {
   chmod -R u+w "$staging/rules"
 }
 
-# Each file moves in with one rename. Each directory swaps with two, and the
-# replaced copy leaves with the staging directory.
+# is_current <staged> <installed> succeeds when installed exists and holds the
+# staged content: a file the same bytes, a directory the same files with the
+# same bytes.
+is_current() {
+  local staged=$1 installed=$2 status=0
+  if [ ! -e "$installed" ]; then
+    return 1
+  fi
+  diff --recursive --brief -- "$staged" "$installed" > /dev/null || status=$?
+  case "$status" in
+    0) return 0 ;;
+    1) return 1 ;;
+    *) fail "could not compare $staged with $installed" ;;
+  esac
+}
+
+# Each changed file moves in with one rename. Each changed directory swaps with
+# two, and the replaced copy leaves with the staging directory.
 install_output() {
   local staging=$1 output_dir=$2 name
   for name in topics rules; do
+    if is_current "$staging/$name" "$output_dir/$name"; then
+      continue
+    fi
     if [ -e "$output_dir/$name" ]; then
       mv "$output_dir/$name" "$staging/replaced-$name"
     fi
     mv "$staging/$name" "$output_dir/$name"
   done
   for name in CLAUDE.md settings.json manifest.json; do
+    if is_current "$staging/$name" "$output_dir/$name"; then
+      continue
+    fi
     mv -f "$staging/$name" "$output_dir/$name"
   done
 }

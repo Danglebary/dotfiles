@@ -28,7 +28,7 @@ Layers only add. A topic is every layer's file of that name, the base's first: t
 
 ## Composing
 
-`compose-home` runs at every home-manager activation, as a `SessionEnd` hook, and again as a `SessionStart` hook, so every session begins from the layers. A `/model`, `/effort`, or `/config` change made during a session is written to `settings.json` by Claude Code and is reverted at the next composition: that is the point, so a one-off model switch never becomes the silent default. To change a setting durably, edit a layer here and activate a home-manager configuration that imports the module; `~/.claude/base` links into the store, so an edit reaches a machine only through activation.
+`compose-home` runs at every home-manager activation, as a `SessionEnd` hook, and again as a `SessionStart` hook, so every session begins from the layers. An output whose content is unchanged is left in place, so a composition that changes nothing shows running sessions no change. A `/model`, `/effort`, or `/config` change made during a session is written to `settings.json` by Claude Code and is reverted at the next composition: that is the point, so a one-off model switch never becomes the silent default. To change a setting durably, edit a layer here and activate a home-manager configuration that imports the module; `~/.claude/base` links into the store, so an edit reaches a machine only through activation.
 
 If `CLAUDE.md` or `settings.json` is ever missing, compose by hand. The hooks are defined inside `settings.json`, so a session that starts without it has no hooks to regenerate it and runs on Claude Code's defaults. Settings and instructions are read at startup, so restart Claude Code after composing.
 
