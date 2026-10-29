@@ -72,6 +72,7 @@
   "idleCompaction": false,
   "autoContinueAtUsageLimit": true,
   "showMessageTimestamps": true,
+  "syncClaudeAiPlugins": false,
   "skipAutoPermissionPrompt": true,
   "extraKnownMarketplaces": {
     "dotfiles": {
