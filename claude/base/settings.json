@@ -70,6 +70,8 @@
   "skipWorkflowUsageWarning": true,
   "remoteControlAtStartup": false,
   "idleCompaction": false,
+  "autoContinueAtUsageLimit": true,
+  "showMessageTimestamps": true,
   "skipAutoPermissionPrompt": true,
   "extraKnownMarketplaces": {
     "dotfiles": {
