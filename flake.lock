@@ -49,11 +49,11 @@
         "rust-overlay": "rust-overlay_2"
       },
       "locked": {
-        "lastModified": 1793414748,
-        "narHash": "sha256-VM9/zPThRscm7NnhMffpKLqVCKmqV3pmPnBZBKuRqeY=",
+        "lastModified": 1793424772,
+        "narHash": "sha256-K31TcgqkE6uhtxcDr1kL47IAnjPdBAKkZgXBxgl0t8E=",
         "owner": "Danglebary",
         "repo": "meter",
-        "rev": "85e2b3cd9f18d0c304e85b426c7ab1a6d4243995",
+        "rev": "3aa915823d7a184004856d9f844b8e22515db19c",
         "type": "github"
       },
       "original": {
