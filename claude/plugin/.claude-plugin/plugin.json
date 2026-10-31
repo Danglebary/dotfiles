@@ -1,6 +1,6 @@
 {
   "name": "dotfiles",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Mods that bring what Claude Code tells the model in line with the guide composed from claude/base: the auto-mode reminder's bash-first steer is replaced with the instruments the guide names.",
   "author": { "name": "Danglebary" },
   "repository": "https://github.com/Danglebary/dotfiles"

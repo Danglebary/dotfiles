@@ -1,6 +1,6 @@
 # claude
 
-My global [Claude Code](https://claude.com/claude-code) configuration, which this repository's home-manager module links into `~/.claude` and composes there on every machine I develop on. This is the personal base: what holds in every environment whenever its subject comes up. Anything specific to an employer or to one environment belongs in an overlay, never here.
+My global [Claude Code](https://claude.com/claude-code) configuration, which this repository's home-manager module links into `~/.claude` and composes there on every machine I develop on. This is the base: what holds in every environment whenever its subject comes up. Anything specific to an employer or to one environment belongs in an overlay, never here.
 
 ## What's here
 

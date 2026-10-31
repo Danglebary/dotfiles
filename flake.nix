@@ -91,23 +91,39 @@
             inherit system;
             config.allowUnfreePredicate = package: nixpkgs.lib.getName package == "claude-code";
           };
-          activationPackage =
+          homeConfiguration =
             module:
-            let
-              configuration = home-manager.lib.homeManagerConfiguration {
-                inherit pkgs;
-                modules = [
-                  module
-                  (checkHome pkgs)
-                ];
-              };
-            in
-            configuration.activationPackage;
+            home-manager.lib.homeManagerConfiguration {
+              inherit pkgs;
+              modules = [
+                module
+                (checkHome pkgs)
+              ];
+            };
+          activationPackage = module: (homeConfiguration module).activationPackage;
+          overlaySettingsFile =
+            module: (homeConfiguration module).config.home.file.".claude/overlay/settings.json".source;
+          personalModule = {
+            imports = [ self.homeManagerModules.default ];
+            claudeHome.personal.enable = true;
+          };
         in
         {
           # Builds every package and the generated files, so a module that
           # evaluates but links a missing path or a broken package fails here.
           module = activationPackage self.homeManagerModules.default;
+
+          # The dotfiles plugin is the personal settings' alone: a machine that
+          # enables them gets the plugin through its overlay, and the base layer
+          # and a machine that does not enable them carry none of it.
+          personal = pkgs.runCommand "dotfiles-personal" { nativeBuildInputs = [ pkgs.jq ]; } ''
+            jq --exit-status '.enabledPlugins["dotfiles@dotfiles"] == true' ${overlaySettingsFile personalModule}
+            jq --exit-status '.extraKnownMarketplaces.dotfiles.source.repo == "Danglebary/dotfiles"' ${overlaySettingsFile personalModule}
+            jq --exit-status '.enabledPlugins["dotfiles@dotfiles"] == null' ${overlaySettingsFile self.homeManagerModules.default}
+            jq --exit-status '.enabledPlugins | has("dotfiles@dotfiles") | not' ${./claude/base/settings.json}
+            jq --exit-status '.extraKnownMarketplaces | has("dotfiles") | not' ${./claude/base/settings.json}
+            touch $out
+          '';
 
           # The plugin tools are imported alone by a configuration that composes
           # ~/.claude itself, so they build without the default module, and a
