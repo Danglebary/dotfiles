@@ -41,6 +41,27 @@
         "type": "github"
       }
     },
+    "meter": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ],
+        "rust-overlay": "rust-overlay_2"
+      },
+      "locked": {
+        "lastModified": 1793413563,
+        "narHash": "sha256-DNkm+LPOPhpX6unSUK0FL8wTuri3AY/Ein4cODYUc3I=",
+        "owner": "Danglebary",
+        "repo": "meter",
+        "rev": "5d72be12171a6c15f4cfbfc38480bbc2e8f19057",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Danglebary",
+        "repo": "meter",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1791456040,
@@ -77,6 +98,7 @@
       "inputs": {
         "excerpt": "excerpt",
         "home-manager": "home-manager",
+        "meter": "meter",
         "nixpkgs": "nixpkgs",
         "splice": "splice"
       }
@@ -105,7 +127,7 @@
     "rust-overlay_2": {
       "inputs": {
         "nixpkgs": [
-          "splice",
+          "meter",
           "nixpkgs"
         ]
       },
@@ -124,6 +146,27 @@
       }
     },
     "rust-overlay_3": {
+      "inputs": {
+        "nixpkgs": [
+          "splice",
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1791448976,
+        "narHash": "sha256-HJ4TEF3j7HmLYeEP/PtqjeiBX/6TppXB2qY53HcrWbs=",
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "rev": "f91010a5c1b6125b715eb78a84fb5dd8fb74a2b0",
+        "type": "github"
+      },
+      "original": {
+        "owner": "oxalica",
+        "repo": "rust-overlay",
+        "type": "github"
+      }
+    },
+    "rust-overlay_4": {
       "inputs": {
         "nixpkgs": [
           "splice",
@@ -150,7 +193,7 @@
         "nixpkgs": [
           "nixpkgs"
         ],
-        "rust-overlay": "rust-overlay_2",
+        "rust-overlay": "rust-overlay_3",
         "tally": "tally"
       },
       "locked": {
@@ -170,7 +213,7 @@
     "tally": {
       "inputs": {
         "nixpkgs": "nixpkgs_2",
-        "rust-overlay": "rust-overlay_3"
+        "rust-overlay": "rust-overlay_4"
       },
       "locked": {
         "lastModified": 1791672609,

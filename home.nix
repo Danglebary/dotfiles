@@ -30,7 +30,6 @@ let
   linkedPaths = [
     "base"
     "bin"
-    "statusline-command.sh"
   ];
   composePath = "bin/compose-home";
 

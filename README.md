@@ -4,9 +4,9 @@ My software development environment, as a [home-manager](https://github.com/nix-
 
 ## What the module installs
 
-- The coding-agent tools: `claude-code`, `herdr`, `gh`, `jq`, `bats`, [`excerpt`](https://github.com/Danglebary/excerpt), and [`splice`](https://github.com/Danglebary/splice). The base layer enables both tools' Claude Code plugins: excerpt's skill teaches agents to read code by item, and splice's hook runs the `splice` binary on every Bash call.
+- The coding-agent tools: `claude-code`, `herdr`, `gh`, `jq`, `bats`, [`excerpt`](https://github.com/Danglebary/excerpt), [`splice`](https://github.com/Danglebary/splice), and [`meter`](https://github.com/Danglebary/meter), whose `meter statusline` the base layer's status line runs. The base layer enables both tools' Claude Code plugins: excerpt's skill teaches agents to read code by item, and splice's hook runs the `splice` binary on every Bash call.
 - This repository's own Claude Code plugin, `dotfiles`, offered by the marketplace at [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) and enabled by the personal settings, which a machine turns on as [Using it](#using-it) shows. Its mod replaces the steer in Claude Code's auto-mode reminder, the paragraph sending the model to `cat`, `sed`, and short scripts for reading and editing files, with the instruments the guide's Working from Bash topic names. Claude Code installs it from this repository on GitHub with `autoUpdate` on, so it follows `main` rather than a consumer's lock of this flake.
-- `~/.claude` composed from [`claude/`](claude/): its `base/`, `bin/`, and status line script are linked in, the machine's overlay settings are written to `~/.claude/overlay/settings.json`, and `compose-home` runs on every activation. Everything else in `~/.claude` stays Claude Code's own. [`claude/README.md`](claude/README.md) covers the layers and how they compose.
+- `~/.claude` composed from [`claude/`](claude/): its `base/` and `bin/` are linked in, the machine's overlay settings are written to `~/.claude/overlay/settings.json`, and `compose-home` runs on every activation. Everything else in `~/.claude` stays Claude Code's own. [`claude/README.md`](claude/README.md) covers the layers and how they compose.
 
 The packages come from this flake's own `nixpkgs`, pinned by `flake.lock`. A consumer that wants one package set makes it follow its own input.
 
@@ -27,7 +27,7 @@ home-manager.users.me = {
 };
 ```
 
-A configuration that composes `~/.claude` itself imports `dotfiles.homeManagerModules.pluginTools` instead, which installs the binary of every plugin the base layer enables and nothing else; the base layer's `settings.json` still enables the plugins, and `nix flake check` fails on an enabled plugin with no binary in that module.
+A configuration that composes `~/.claude` itself imports `dotfiles.homeManagerModules.pluginTools` instead, which installs the binary of every plugin the base layer enables and the status line's meter, and nothing else; the base layer's `settings.json` still enables the plugins, and `nix flake check` fails on an enabled plugin with no binary in that module.
 
 A machine's own Claude Code settings go through `claudeHome.overlay.settings`. Every module's definitions merge into the one overlay fragment, which `compose-home` merges over the base layer:
 
@@ -43,7 +43,7 @@ claudeHome.overlay.settings = {
 
 A personal machine sets `claudeHome.personal.enable = true;`, which adds this repository's `dotfiles` plugin to its overlay. A machine under an employer's managed policy leaves it off: the plugin's mod rewrites Claude Code's auto-mode reminder, and such a policy can refuse that rewrite.
 
-home-manager refuses to replace a file it did not create. On a machine where `~/.claude/base`, `~/.claude/bin`, `~/.claude/statusline-command.sh`, or `~/.claude/overlay/settings.json` already exists, move it aside before the first activation.
+home-manager refuses to replace a file it did not create. On a machine where `~/.claude/base`, `~/.claude/bin`, or `~/.claude/overlay/settings.json` already exists, move it aside before the first activation.
 
 ## Updating
 

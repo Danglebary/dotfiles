@@ -20,6 +20,11 @@
       url = "github:Danglebary/splice";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    meter = {
+      url = "github:Danglebary/meter";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -29,6 +34,7 @@
       home-manager,
       excerpt,
       splice,
+      meter,
     }:
     let
       systems = [
@@ -39,7 +45,7 @@
       ];
       forEachSystem = nixpkgs.lib.genAttrs systems;
 
-      pluginToolModules = import ./plugin-tools.nix { inherit excerpt splice; };
+      pluginToolModules = import ./plugin-tools.nix { inherit excerpt splice meter; };
 
       ownMarketplace = (builtins.fromJSON (builtins.readFile ./.claude-plugin/marketplace.json)).name;
 
@@ -57,6 +63,7 @@
       pluginsWithoutTools = builtins.filter (
         name: !(builtins.hasAttr name pluginToolModules)
       ) basePluginNames;
+      pluginsWithTools = builtins.filter (name: builtins.hasAttr name pluginToolModules) basePluginNames;
 
       baseMarketplaces =
         (builtins.fromJSON (builtins.readFile ./claude/base/settings.json)).extraKnownMarketplaces;
@@ -68,7 +75,7 @@
           isMismatched = name: declaredRef name != expectedRef name;
           describe = name: "${name} at ${declaredRef name} where the flake pins ${expectedRef name}";
         in
-        map describe (builtins.filter isMismatched (builtins.attrNames pluginToolModules));
+        map describe (builtins.filter isMismatched pluginsWithTools);
 
       # A home directory for the module check, on the platform's own layout.
       checkHome =
