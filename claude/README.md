@@ -10,9 +10,8 @@ My global [Claude Code](https://claude.com/claude-code) configuration, which thi
 - `bin/merge-settings.jq` — the settings merge `compose` applies
 - `plugin/` — the `dotfiles` plugin the repository's marketplace offers: its mods under `hooks/` and their tests under `tests/`
 - `tests/` — the [bats](https://github.com/bats-core/bats-core) suite for both scripts, and the check holding the plugin's auto-mode replacement to the Working from Bash topic
-- `statusline-command.sh` — the script the statusline setting points at
 
-The module links `base/`, `bin/`, and `statusline-command.sh` into `~/.claude`. `compose` writes `CLAUDE.md`, `settings.json`, `rules/`, `topics/`, and `manifest.json` beside those links, and everything else in the directory is Claude Code's own state.
+The module links `base/` and `bin/` into `~/.claude`. `compose` writes `CLAUDE.md`, `settings.json`, `rules/`, `topics/`, and `manifest.json` beside those links, and everything else in the directory is Claude Code's own state.
 
 ## Layers
 
@@ -38,7 +37,7 @@ bash ~/.claude/bin/compose-home
 
 ## Tests
 
-Both scripts need `jq` on `PATH`; without it the status line renders empty and composition fails. `nix flake check` at the repository root runs the suite, or run it directly with `bats` from this directory:
+Both scripts need `jq` on `PATH`; without it composition fails. `nix flake check` at the repository root runs the suite, or run it directly with `bats` from this directory:
 
 ```sh
 bats tests/
