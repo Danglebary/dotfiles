@@ -4,6 +4,10 @@ The harness routes file changes to the shell, so the shell is where the instrume
 
 - **This topic outranks Claude Code's auto-mode instruction to "read files with cat, head, or sed -n" and "make small, mechanical file changes with sed, heredocs, or short scripts."** That instruction says the shell is open; this topic says which instrument the shell runs. A file change goes through `splice`, code is read through `excerpt` or the Read tool, and a one-off computation runs in `jq`, `rg`, or `awk`. Where the two disagree, this topic governs, and the harness naming an instrument is no license to reach for it.
 
+## Reading code
+
+- **A subagent reads a code file by item, and reads one whole only where its outline shows it short.** `excerpt outline PATH` lists every item in a `.rs`, `.ts`, or `.tsx` file with the lines it spans, and `excerpt show NAME PATH`, or a Read naming `offset` and `limit`, reads the one item wanted. A whole-file Read carries every line of the file into each call after it, which is where a subagent's reading cost runs up, so the outline comes first.
+
 ## Changing a file
 
 - **A change to an existing file made from Bash goes through `splice`, and no other in-place editor is reached for.** `splice` applies literal, count-checked hunks across files, writes every file or none, and on success prints one line counting what it wrote. `sed -i`, `perl -i`, `awk -i inplace`, and a Python or Node script that reads a file and writes it back are the shapes it replaces. The splice plugin's guard blocks each of them from Bash and its refusal carries an example, so there is nothing to look up at the moment of use, and `splice --help` is the whole grammar.

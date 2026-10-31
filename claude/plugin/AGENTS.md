@@ -13,7 +13,7 @@ The contract is the TypeScript declarations Claude Code ships for the mod API: e
 
 ## Installation and configuration
 
-The plugin needs no credentials. `.claude-plugin/marketplace.json` at the repository root offers it, and `claude/base/settings.json` declares that marketplace from GitHub with `autoUpdate` on and no `ref`, so installs follow `main` rather than a consumer's lock of this flake.
+The plugin needs no credentials. `.claude-plugin/marketplace.json` at the repository root offers it, and `home.nix` declares that marketplace from GitHub with `autoUpdate` on and no `ref`, among the personal settings a machine's overlay carries only where `claudeHome.personal.enable` is set, so installs follow `main` rather than a consumer's lock of this flake. The base layer carries none of it, because a managed policy can refuse the mod's rewrite.
 
 `plugin.json` pins `version`, and a pinned version keeps every install on its cached copy until the string changes, so a change under this directory raises it.
 

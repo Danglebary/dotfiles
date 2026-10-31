@@ -51,6 +51,17 @@ let
   settingsFormat = pkgs.formats.json { };
   overlaySettings = config.claudeHome.overlay.settings;
   overlaySettingsFile = settingsFormat.generate "claude-overlay-settings.json" overlaySettings;
+
+  personalSettings = {
+    extraKnownMarketplaces.dotfiles = {
+      source = {
+        source = "github";
+        repo = "Danglebary/dotfiles";
+      };
+      autoUpdate = true;
+    };
+    enabledPlugins."dotfiles@dotfiles" = true;
+  };
 in
 {
   imports = [ pluginTools ];
@@ -65,8 +76,22 @@ in
     '';
   };
 
+  options.claudeHome.personal.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = false;
+    description = ''
+      Whether the overlay fragment carries the personal settings: this
+      repository's dotfiles plugin, installed from GitHub with autoUpdate on.
+      Its mod rewrites the steer in Claude Code's auto-mode reminder, which a
+      managed policy can refuse, so a machine under an employer's policy
+      leaves this off.
+    '';
+  };
+
   config = {
     assertions = map requiredPathAssertion requiredPaths;
+
+    claudeHome.overlay.settings = lib.mkIf config.claudeHome.personal.enable personalSettings;
 
     home.packages = [
       tools.claude-code

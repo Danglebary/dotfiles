@@ -76,13 +76,6 @@
   "syncClaudeAiSkills": false,
   "skipAutoPermissionPrompt": true,
   "extraKnownMarketplaces": {
-    "dotfiles": {
-      "source": {
-        "source": "github",
-        "repo": "Danglebary/dotfiles"
-      },
-      "autoUpdate": true
-    },
     "excerpt": {
       "source": {
         "source": "github",
@@ -101,7 +94,6 @@
     }
   },
   "enabledPlugins": {
-    "dotfiles@dotfiles": true,
     "excerpt@excerpt": true,
     "splice@splice": true
   }

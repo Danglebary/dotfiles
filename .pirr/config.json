@@ -1,0 +1,12 @@
+{
+    "ledger": {
+        "kind": "sqlite",
+        "path": ".pirr/store.sqlite"
+    },
+    "repository": {
+        "identity": "88824e1d-f0ba-48ad-a67e-77c17981d295"
+    },
+    "tenant": {
+        "identity": "9a027507-6c48-403a-9b5b-af0fe97bb394"
+    }
+}
