@@ -70,3 +70,7 @@ claude plugin test claude/plugin
 A change under `claude/plugin/` raises the `version` in its `plugin.json`: an installed copy updates when that version moves.
 
 CI runs it on every pull request and every push to `main`, on x86_64 Linux.
+
+## License
+
+Licensed under the [MIT No Attribution license](LICENSE), so any part of it can be copied into another project without carrying a copyright notice.
