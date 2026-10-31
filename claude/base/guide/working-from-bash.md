@@ -6,7 +6,7 @@ The harness routes file changes to the shell, so the shell is where the instrume
 
 ## Reading code
 
-- **A subagent reads a code file by item, and reads one whole only where its outline shows it short.** `excerpt outline PATH` lists every item in a `.rs`, `.ts`, or `.tsx` file with the lines it spans, and `excerpt show NAME PATH`, or a Read naming `offset` and `limit`, reads the one item wanted. A whole-file Read carries every line of the file into each call after it, which is where a subagent's reading cost runs up, so the outline comes first.
+- **A subagent reads a code file by item, and reads one whole only where it runs to 300 lines or fewer.** `excerpt outline PATH` lists every item in a `.rs`, `.ts`, or `.tsx` file with the lines it spans, and `excerpt show NAME PATH`, or a Read naming `offset` and `limit`, reads the one item wanted. A whole-file Read carries every line of the file into each call after it, which is where a subagent's reading cost runs up, so the outline comes first. excerpt's guard refuses a subagent's Read of a longer code file that names no `offset` or `limit`, and its refusal names the `excerpt outline` and `excerpt show` commands for the file.
 
 ## Changing a file
 
