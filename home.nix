@@ -51,6 +51,18 @@ let
   overlaySettings = config.claudeHome.overlay.settings;
   overlaySettingsFile = settingsFormat.generate "claude-overlay-settings.json" overlaySettings;
 
+  topicNamePattern = "[a-z0-9-]+";
+  overlayGuide = config.claudeHome.overlay.guide;
+  overlayGuideFile = topic: text: {
+    name = ".claude/overlay/guide/${topic}.md";
+    value.text = text;
+  };
+  overlayGuideFiles = lib.mapAttrs' overlayGuideFile overlayGuide;
+  topicNameAssertion = topic: {
+    assertion = builtins.match topicNamePattern topic != null;
+    message = "claudeHome.overlay.guide names the topic ${topic}, which is not a plain topic name (${topicNamePattern}).";
+  };
+
   personalSettings = {
     extraKnownMarketplaces.dotfiles = {
       source = {
@@ -61,6 +73,13 @@ let
     };
     enabledPlugins."dotfiles@dotfiles" = true;
   };
+
+  mergeApprovalSettings.permissions.ask = [ "Bash(gh pr merge:*)" ];
+  # This text extends the Git topic rather than introducing it, so it opens
+  # with no heading.
+  mergeApprovalGuide.git = ''
+    - **Merging is gated on my go-ahead, every time.** Offer a merge when the work is ready, and run it when I say so — never on your own judgment, and a go-ahead for one merge does not carry to the next. The `permissions.ask` entry for `gh pr merge`, which the dotfiles module's `claudeHome.mergeApproval.enable` writes into the overlay settings beside this rule, is the mechanical backstop: the harness prompts before the command runs whatever the session's permission mode.
+  '';
 in
 {
   imports = [ pluginTools ];
@@ -87,10 +106,39 @@ in
     '';
   };
 
-  config = {
-    assertions = map requiredPathAssertion requiredPaths;
+  options.claudeHome.overlay.guide = lib.mkOption {
+    type = lib.types.attrsOf lib.types.lines;
+    default = { };
+    description = ''
+      Guide topics of the overlay layer, by topic name, each written to
+      ~/.claude/overlay/guide/<topic>.md for compose-home to compose after the
+      base layer. Text extending a topic the base layer introduces carries no
+      top-level heading, and text introducing a topic opens with one.
+      Definitions of one topic from several modules join into one file.
+    '';
+  };
 
-    claudeHome.overlay.settings = lib.mkIf config.claudeHome.personal.enable personalSettings;
+  options.claudeHome.mergeApproval.enable = lib.mkOption {
+    type = lib.types.bool;
+    default = true;
+    description = ''
+      Whether merging waits on the user's go-ahead: the overlay carries the
+      rule as an extension of the Git topic and a permissions.ask entry for
+      `gh pr merge`, so the harness prompts before that command runs whatever
+      the session's permission mode. The base layer carries neither, so turning
+      this off leaves a machine with no merge gate.
+    '';
+  };
+
+  config = {
+    assertions =
+      map requiredPathAssertion requiredPaths ++ map topicNameAssertion (builtins.attrNames overlayGuide);
+
+    claudeHome.overlay.settings = lib.mkMerge [
+      (lib.mkIf config.claudeHome.personal.enable personalSettings)
+      (lib.mkIf config.claudeHome.mergeApproval.enable mergeApprovalSettings)
+    ];
+    claudeHome.overlay.guide = lib.mkIf config.claudeHome.mergeApproval.enable mergeApprovalGuide;
 
     home.packages = [
       tools.claude-code
@@ -103,6 +151,7 @@ in
     home.file = lib.mkMerge [
       (lib.listToAttrs linkedFiles)
       { ".claude/overlay/settings.json".source = overlaySettingsFile; }
+      overlayGuideFiles
     ];
 
     # Composing at activation gives a machine its CLAUDE.md and settings.json

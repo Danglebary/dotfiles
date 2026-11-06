@@ -114,6 +114,12 @@
             imports = [ self.homeManagerModules.default ];
             claudeHome.personal.enable = true;
           };
+          mergeApprovalOffModule = {
+            imports = [ self.homeManagerModules.default ];
+            claudeHome.mergeApproval.enable = false;
+          };
+          overlayGitGuidePath = ".claude/overlay/guide/git.md";
+          homeFiles = module: (homeConfiguration module).config.home.file;
         in
         {
           # Builds every package and the generated files, so a module that
@@ -131,6 +137,27 @@
             jq --exit-status '.extraKnownMarketplaces | has("dotfiles") | not' ${./claude/base/settings.json}
             touch $out
           '';
+
+          # The merge gate is the overlay's alone: the default module writes the
+          # go-ahead rule and its ask entry there, a machine that turns the
+          # option off gets neither, and the base layer carries neither.
+          mergeApproval =
+            if builtins.hasAttr overlayGitGuidePath (homeFiles mergeApprovalOffModule) then
+              throw "claudeHome.mergeApproval.enable = false still writes ~/${overlayGitGuidePath}."
+            else
+              pkgs.runCommand "dotfiles-merge-approval" { nativeBuildInputs = [ pkgs.jq ]; } ''
+                grep --quiet --fixed-strings '**Merging is gated on my go-ahead, every time.**' ${
+                  (homeFiles self.homeManagerModules.default).${overlayGitGuidePath}.source
+                }
+                jq --exit-status '.permissions.ask | index("Bash(gh pr merge:*)") != null' ${overlaySettingsFile self.homeManagerModules.default}
+                jq --exit-status '.permissions.ask | index("Bash(gh pr merge:*)") == null' ${overlaySettingsFile mergeApprovalOffModule}
+                jq --exit-status '.permissions.ask | index("Bash(gh pr merge:*)") == null' ${./claude/base/settings.json}
+                if grep --quiet --fixed-strings 'go-ahead' ${./claude/base/guide/git.md}; then
+                  printf 'claude/base/guide/git.md carries the merge rule\n' >&2
+                  exit 1
+                fi
+                touch $out
+              '';
 
           # The plugin tools are imported alone by a configuration that composes
           # ~/.claude itself, so they build without the default module, and a

@@ -21,7 +21,9 @@ A layer is a directory holding any of three things, and its name is the director
 - `rules/**/*.md` — Claude Code [rules](https://code.claude.com/docs/en/memory.md). A rule with `paths:` frontmatter loads only once Claude reads or edits a matching file, which is where language-specific guidance goes.
 - `settings.json` — a settings fragment.
 
-`base/` is the base layer. A persona overlay (a machine's, an employer's) is a directory with the same shape at `~/.claude/overlay/`; the module writes its `settings.json` from the `claudeHome.overlay.settings` option.
+`base/` is the base layer. A persona overlay (a machine's, an employer's) is a directory with the same shape at `~/.claude/overlay/`; the module writes its `settings.json` from the `claudeHome.overlay.settings` option and its `guide/<topic>.md` files from the `claudeHome.overlay.guide` option.
+
+The merge gate is the overlay's, so a machine can turn it off: `claudeHome.mergeApproval.enable`, on by default, writes the rule that merging waits on my go-ahead into the overlay's Git topic and a `permissions.ask` entry for `gh pr merge` into its settings, and the base layer carries neither.
 
 Layers only add. A topic is every layer's file of that name, the base's first: the layer that introduces a topic opens it with a top-level heading, and a later layer's file of the same name extends it and carries no heading of its own. `compose` refuses a layer that breaks either half of that. Topics are written in alphabetical order, and nothing in the guide depends on the order, since a reference to another topic names it. Rules are copied as plain files under `rules/<layer>/`. Settings merge recursively: objects merge, arrays union with the earlier layer's entries first, and scalars override, so an overlay can add to a base list such as `permissions.ask` and can never remove a base entry from it.
 
