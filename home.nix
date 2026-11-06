@@ -50,17 +50,42 @@ let
   settingsFormat = pkgs.formats.json { };
   overlaySettings = config.claudeHome.overlay.settings;
   overlaySettingsFile = settingsFormat.generate "claude-overlay-settings.json" overlaySettings;
+  overlaySettingsPath = ".claude/overlay/settings.json";
 
   topicNamePattern = "[a-z0-9-]+";
   overlayGuide = config.claudeHome.overlay.guide;
   overlayGuideFile = topic: text: {
     name = ".claude/overlay/guide/${topic}.md";
-    value.text = text;
+    value.source = pkgs.writeText "claude-overlay-guide-${topic}.md" text;
   };
   overlayGuideFiles = lib.mapAttrs' overlayGuideFile overlayGuide;
   topicNameAssertion = topic: {
     assertion = builtins.match topicNamePattern topic != null;
     message = "claudeHome.overlay.guide names the topic ${topic}, which is not a plain topic name (${topicNamePattern}).";
+  };
+
+  # A second home.file source for one of the module's overlay paths conflicts
+  # with the module's own at evaluation. A text definition on the same path and
+  # an entry linking a directory above it merge without a conflict and drop or
+  # ignore what one side wrote, so the assertions below refuse both.
+  overlayPaths = [ overlaySettingsPath ] ++ builtins.attrNames overlayGuideFiles;
+  overlayOwnershipRemedy = "Overlay text and settings go through claudeHome.overlay.guide and claudeHome.overlay.settings.";
+  homeFileEntries = builtins.attrValues config.home.file;
+  enabledHomeFileEntries = builtins.filter (entry: entry.enable) homeFileEntries;
+  enclosingEntries =
+    path: builtins.filter (entry: lib.hasPrefix "${entry.target}/" path) enabledHomeFileEntries;
+  overlayEnclosureAssertion =
+    path:
+    let
+      targets = map (entry: entry.target) (enclosingEntries path);
+    in
+    {
+      assertion = targets == [ ];
+      message = "home.file links ~/${builtins.concatStringsSep ", ~/" targets} over ~/${path}, which the dotfiles module writes. ${overlayOwnershipRemedy}";
+    };
+  overlayTextAssertion = path: {
+    assertion = config.home.file.${path}.text == null;
+    message = "home.file.\"${path}\".text is set, and the dotfiles module writes ~/${path} from its own source, which ignores that text. ${overlayOwnershipRemedy}";
   };
 
   personalSettings = {
@@ -75,8 +100,6 @@ let
   };
 
   mergeApprovalSettings.permissions.ask = [ "Bash(gh pr merge:*)" ];
-  # This text extends the Git topic rather than introducing it, so it opens
-  # with no heading.
   mergeApprovalGuide.git = ''
     - **Merging is gated on my go-ahead, every time.** Offer a merge when the work is ready, and run it when I say so — never on your own judgment, and a go-ahead for one merge does not carry to the next. The `permissions.ask` entry for `gh pr merge`, which the dotfiles module's `claudeHome.mergeApproval.enable` writes into the overlay settings beside this rule, is the mechanical backstop: the harness prompts before the command runs whatever the session's permission mode.
   '';
@@ -112,9 +135,11 @@ in
     description = ''
       Guide topics of the overlay layer, by topic name, each written to
       ~/.claude/overlay/guide/<topic>.md for compose-home to compose after the
-      base layer. Text extending a topic the base layer introduces carries no
-      top-level heading, and text introducing a topic opens with one.
-      Definitions of one topic from several modules join into one file.
+      base layer. A topic name matches [a-z0-9-]+. Text extending a topic the
+      base layer introduces carries no top-level heading, and text introducing
+      a topic opens with one. Definitions of one topic from several modules
+      join into one file, which the module owns: a home.file entry on that
+      file or on a directory above it is refused.
     '';
   };
 
@@ -132,7 +157,10 @@ in
 
   config = {
     assertions =
-      map requiredPathAssertion requiredPaths ++ map topicNameAssertion (builtins.attrNames overlayGuide);
+      map requiredPathAssertion requiredPaths
+      ++ map topicNameAssertion (builtins.attrNames overlayGuide)
+      ++ map overlayEnclosureAssertion overlayPaths
+      ++ map overlayTextAssertion overlayPaths;
 
     claudeHome.overlay.settings = lib.mkMerge [
       (lib.mkIf config.claudeHome.personal.enable personalSettings)
@@ -150,7 +178,7 @@ in
 
     home.file = lib.mkMerge [
       (lib.listToAttrs linkedFiles)
-      { ".claude/overlay/settings.json".source = overlaySettingsFile; }
+      { ${overlaySettingsPath}.source = overlaySettingsFile; }
       overlayGuideFiles
     ];
 

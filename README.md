@@ -43,11 +43,11 @@ claudeHome.overlay.settings = {
 
 A personal machine sets `claudeHome.personal.enable = true;`, which adds this repository's `dotfiles` plugin to its overlay. A machine under an employer's managed policy leaves it off: the plugin's mod rewrites Claude Code's auto-mode reminder, and such a policy can refuse that rewrite.
 
-A machine's own guide text goes through `claudeHome.overlay.guide`, by topic name: each entry is written to `~/.claude/overlay/guide/<topic>.md`, and an entry extending a topic the base layer introduces carries no heading of its own.
+A machine's own guide text goes through `claudeHome.overlay.guide`, by topic name, which matches `[a-z0-9-]+`: each entry is written to `~/.claude/overlay/guide/<topic>.md`, and an entry extending a topic the base layer introduces carries no heading of its own. Text for the Git topic goes through `claudeHome.overlay.guide.git`, where it joins the merge rule below, and never through a `home.file` entry on `.claude/overlay/guide/` or a file under it. Such an entry replaces or hides the module's file, dropping the rule while the ask entry stays, and the module refuses it at evaluation.
 
 Merging waits on my go-ahead wherever `claudeHome.mergeApproval.enable` stays on, its default: the overlay carries the rule in its Git topic and a `permissions.ask` entry for `gh pr merge`. A machine that sets `claudeHome.mergeApproval.enable = false;` composes neither.
 
-home-manager refuses to replace a file it did not create. On a machine where `~/.claude/base`, `~/.claude/bin`, or a file the module writes under `~/.claude/overlay/` already exists, move it aside before the first activation.
+home-manager refuses to replace a file it did not create, at a machine's first activation and at every later one. Where `~/.claude/base`, `~/.claude/bin`, or a file the module writes under `~/.claude/overlay/` already stands and home-manager did not create it, move it aside before activating a configuration that writes it.
 
 ## Updating
 
