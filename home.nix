@@ -89,14 +89,45 @@ let
   };
 
   personalSettings = {
-    extraKnownMarketplaces.dotfiles = {
-      source = {
-        source = "github";
-        repo = "Danglebary/dotfiles";
+    extraKnownMarketplaces = {
+      dotfiles = {
+        source = {
+          source = "github";
+          repo = "Danglebary/dotfiles";
+        };
+        autoUpdate = true;
       };
-      autoUpdate = true;
+      pirr.source = {
+        source = "directory";
+        path = config.claudeHome.personal.pirrCheckout;
+      };
     };
-    enabledPlugins."dotfiles@dotfiles" = true;
+    enabledPlugins = {
+      "dotfiles@dotfiles" = true;
+      "pirr@pirr" = true;
+      "pirr-tui@pirr" = true;
+    };
+    permissions.allow = [
+      "Bash(pirr decisions --id:*)"
+      "Bash(pirr decisions read:*)"
+      "Bash(pirr guide:*)"
+    ];
+    # "$defaults" splices the classifier's built-in entries into a list, and a
+    # list without it replaces them.
+    # https://code.claude.com/docs/en/auto-mode-config.md — checked 2026-11-06
+    autoMode.environment = [
+      "$defaults"
+      "Host: a personal machine the user owns and administers alone. ~/projects holds their personal repositories, and nothing on it belongs to an employer."
+      "Source control: github.com/Danglebary, the user's own account. Every repository under it is the user's, so pushing to one, a private backup repository such as Danglebary/pirr-store included, is ordinary source control and not exfiltration. Changing a repository's visibility to public is still a public-surface change."
+      "pirr: the user's own decision-ledger CLI, run as pirr or just pirr. Its vocabulary (the escalation classifier, the tension judge, rulings, userQuote, servers.<name>.program) names pirr's own domain and is unrelated to Claude Code's auto-mode classifier or permissions. Its ledger is a SQLite store under ~/.pirr holding the user's own records, which every checkout on the machine shares and a repository's .pirr/config.json names, and ~/.pirr/config.json holds routes, model names, and the names of environment variables, never secret values."
+    ];
+    autoMode.allow = [
+      "$defaults"
+      "pirr Ledger Writes: Writing to the user's ledger store under ~/.pirr through the pirr CLI is an ordinary local write to the user's own records, which just backup snapshots to a private repository. It is Instruction Poisoning only where the write attributes words or agreement to the user that the user's own messages do not contain."
+      "pirr Stub Fixtures: Pointing a scratch copy of pirr's configuration at a stub program inside the session scratchpad to replay a fixture is ordinary testing, not an auto-mode bypass, provided the stub runs no claude invocation."
+      "Restricted Nested Claude: Running claude -p as a probe or evaluation child is allowed when it runs in the session scratchpad under a timeout, with an explicit narrow --tools or --allowedTools list, a permission mode of default or dontAsk, and neither bypassPermissions nor --dangerously-skip-permissions."
+      "Handoff Notes: Deleting a handoff.md note in ~ or at the root of a repository under ~/projects once the session has read it. The user has sessions write these notes as one-shot handoffs to the next session."
+    ];
   };
 
   mergeApprovalSettings.permissions.ask = [ "Bash(gh pr merge:*)" ];
@@ -121,11 +152,26 @@ in
     type = lib.types.bool;
     default = false;
     description = ''
-      Whether the overlay fragment carries the personal settings: this
-      repository's dotfiles plugin, installed from GitHub with autoUpdate on.
-      Its mod rewrites the steer in Claude Code's auto-mode reminder, which a
-      managed policy can refuse, so a machine under an employer's policy
-      leaves this off.
+      Whether the overlay carries the personal settings: this repository's
+      dotfiles plugin, installed from GitHub with autoUpdate on; the pirr and
+      pirr-tui plugins from the checkout at claudeHome.personal.pirrCheckout;
+      the pirr read verbs' allow entries; and the auto-mode environment and
+      allow entries describing a machine the user owns alone. It also turns
+      claudeHome.mergeApproval.enable off at default priority, so a personal
+      machine merges without the go-ahead unless it turns the gate back on.
+      The dotfiles plugin's mod rewrites the steer in Claude Code's auto-mode
+      reminder, which a managed policy can refuse, so a machine under an
+      employer's policy leaves this off.
+    '';
+  };
+
+  options.claudeHome.personal.pirrCheckout = lib.mkOption {
+    type = lib.types.str;
+    default = "${config.home.homeDirectory}/projects/pirr";
+    defaultText = lib.literalExpression ''"''${config.home.homeDirectory}/projects/pirr"'';
+    description = ''
+      The path of the pirr checkout the personal settings install the pirr
+      marketplace from, as a directory source.
     '';
   };
 
@@ -151,7 +197,8 @@ in
       rule as an extension of the Git topic and a permissions.ask entry for
       `gh pr merge`, so the harness prompts before that command runs whatever
       the session's permission mode. The base layer carries neither, so turning
-      this off leaves a machine with no merge gate.
+      this off leaves a machine with no merge gate. It is on by default, and
+      off by default where claudeHome.personal.enable is on.
     '';
   };
 
@@ -167,6 +214,7 @@ in
       (lib.mkIf config.claudeHome.mergeApproval.enable mergeApprovalSettings)
     ];
     claudeHome.overlay.guide = lib.mkIf config.claudeHome.mergeApproval.enable mergeApprovalGuide;
+    claudeHome.mergeApproval.enable = lib.mkIf config.claudeHome.personal.enable (lib.mkDefault false);
 
     home.packages = [
       tools.claude-code
