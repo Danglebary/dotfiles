@@ -161,6 +161,19 @@
               accepted = moduleWith { home.file.".claude/overlay/notes.md".source = ./claude/base/guide/git.md; };
               refused = moduleWith { home.file.${overlayGitGuidePath}.source = ./claude/base/guide/git.md; };
             };
+            "a machine's auto-mode entries carrying a second $defaults beside the personal settings'" = {
+              accepted = moduleWith {
+                claudeHome.personal.enable = true;
+                claudeHome.overlay.settings.autoMode.environment = [ "Host: a machine." ];
+              };
+              refused = moduleWith {
+                claudeHome.personal.enable = true;
+                claudeHome.overlay.settings.autoMode.environment = [
+                  "$defaults"
+                  "Host: a machine."
+                ];
+              };
+            };
           };
           caseNamesWhere =
             predicate: builtins.attrNames (nixpkgs.lib.filterAttrs (_: predicate) refusalCases);
@@ -191,6 +204,8 @@
                 jq --exit-status '.enabledPlugins["pirr-tui@pirr"] == true' "$personal"
                 jq --exit-status --arg path "${checkHomeDirectory}/projects/pirr" \
                   '.extraKnownMarketplaces.pirr.source == {source: "directory", path: $path}' "$personal"
+                jq --exit-status '.permissions.allow | index("Bash(pirr decisions --id:*)") != null' "$personal"
+                jq --exit-status '.permissions.allow | index("Bash(pirr decisions read:*)") != null' "$personal"
                 jq --exit-status '.permissions.allow | index("Bash(pirr guide:*)") != null' "$personal"
                 jq --exit-status '.autoMode.environment[0] == "$defaults"' "$personal"
                 jq --exit-status '.autoMode.allow[0] == "$defaults"' "$personal"
@@ -205,8 +220,11 @@
                 jq --exit-status '.enabledPlugins // {} | has("pirr-tui@pirr") | not' "$impersonal"
                 jq --exit-status '.extraKnownMarketplaces // {} | has("pirr") | not' "$impersonal"
                 jq --exit-status 'has("autoMode") | not' "$impersonal"
+                jq --exit-status '[.permissions.allow[]? | select(startswith("Bash(pirr "))] == []' "$impersonal"
                 jq --exit-status '.enabledPlugins | has("dotfiles@dotfiles") | not' ${./claude/base/settings.json}
                 jq --exit-status '.enabledPlugins | has("pirr@pirr") | not' ${./claude/base/settings.json}
+                jq --exit-status '.enabledPlugins | has("pirr-tui@pirr") | not' ${./claude/base/settings.json}
+                jq --exit-status '[.permissions.allow[]? | select(startswith("Bash(pirr "))] == []' ${./claude/base/settings.json}
                 jq --exit-status '.extraKnownMarketplaces | has("dotfiles") | not' ${./claude/base/settings.json}
                 jq --exit-status '.extraKnownMarketplaces | has("pirr") | not' ${./claude/base/settings.json}
                 touch $out

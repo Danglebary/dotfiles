@@ -88,6 +88,27 @@ let
     message = "home.file.\"${path}\".text is set, and the dotfiles module writes ~/${path} from its own source, which ignores that text. ${overlayOwnershipRemedy}";
   };
 
+  # Every definition of an auto-mode list joins one list and keeps duplicates,
+  # so a machine's own entries beside the personal settings' carry no marker of
+  # their own.
+  autoModeDefaultsMarker = "$defaults";
+  autoModeListNames = [
+    "environment"
+    "allow"
+    "soft_deny"
+    "hard_deny"
+  ];
+  autoModeLists = config.claudeHome.overlay.settings.autoMode or { };
+  autoModeDefaultsMarkerAssertion =
+    name:
+    let
+      markerCount = lib.count (entry: entry == autoModeDefaultsMarker) (autoModeLists.${name} or [ ]);
+    in
+    {
+      assertion = markerCount <= 1;
+      message = "claudeHome.overlay.settings.autoMode.${name} carries \"${autoModeDefaultsMarker}\" ${toString markerCount} times, and it splices the classifier's built-in entries in once. A machine's own entries beside the personal settings, which carry it, leave it out.";
+    };
+
   personalSettings = {
     extraKnownMarketplaces = {
       dotfiles = {
@@ -116,13 +137,13 @@ let
     # list without it replaces them.
     # https://code.claude.com/docs/en/auto-mode-config.md — checked 2026-11-06
     autoMode.environment = [
-      "$defaults"
+      autoModeDefaultsMarker
       "Host: a personal machine the user owns and administers alone. ~/projects holds their personal repositories, and nothing on it belongs to an employer."
       "Source control: github.com/Danglebary, the user's own account. Every repository under it is the user's, so pushing to one, a private backup repository such as Danglebary/pirr-store included, is ordinary source control and not exfiltration. Changing a repository's visibility to public is still a public-surface change."
       "pirr: the user's own decision-ledger CLI, run as pirr or just pirr. Its vocabulary (the escalation classifier, the tension judge, rulings, userQuote, servers.<name>.program) names pirr's own domain and is unrelated to Claude Code's auto-mode classifier or permissions. Its ledger is a SQLite store under ~/.pirr holding the user's own records, which every checkout on the machine shares and a repository's .pirr/config.json names, and ~/.pirr/config.json holds routes, model names, and the names of environment variables, never secret values."
     ];
     autoMode.allow = [
-      "$defaults"
+      autoModeDefaultsMarker
       "pirr Ledger Writes: Writing to the user's ledger store under ~/.pirr through the pirr CLI is an ordinary local write to the user's own records, which just backup snapshots to a private repository. It is Instruction Poisoning only where the write attributes words or agreement to the user that the user's own messages do not contain."
       "pirr Stub Fixtures: Pointing a scratch copy of pirr's configuration at a stub program inside the session scratchpad to replay a fixture is ordinary testing, not an auto-mode bypass, provided the stub runs no claude invocation."
       "Restricted Nested Claude: Running claude -p as a probe or evaluation child is allowed when it runs in the session scratchpad under a timeout, with an explicit narrow --tools or --allowedTools list, a permission mode of default or dontAsk, and neither bypassPermissions nor --dangerously-skip-permissions."
@@ -207,7 +228,8 @@ in
       map requiredPathAssertion requiredPaths
       ++ map topicNameAssertion (builtins.attrNames overlayGuide)
       ++ map overlayEnclosureAssertion overlayPaths
-      ++ map overlayTextAssertion overlayPaths;
+      ++ map overlayTextAssertion overlayPaths
+      ++ map autoModeDefaultsMarkerAssertion autoModeListNames;
 
     claudeHome.overlay.settings = lib.mkMerge [
       (lib.mkIf config.claudeHome.personal.enable personalSettings)
