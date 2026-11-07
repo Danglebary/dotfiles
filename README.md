@@ -6,7 +6,7 @@ My software development environment, as a [home-manager](https://github.com/nix-
 
 - The coding-agent tools: `claude-code`, `herdr`, `gh`, `jq`, `bats`, [`excerpt`](https://github.com/Danglebary/excerpt), [`splice`](https://github.com/Danglebary/splice), and [`meter`](https://github.com/Danglebary/meter), whose `meter statusline` the base layer's status line runs. The base layer enables both tools' Claude Code plugins: excerpt's skill teaches agents to read code by item, and splice's hook runs the `splice` binary on every Bash call.
 - This repository's own Claude Code plugin, `dotfiles`, offered by the marketplace at [`.claude-plugin/marketplace.json`](.claude-plugin/marketplace.json) and enabled by the personal settings, which a machine turns on as [Using it](#using-it) shows. Its mod replaces the steer in Claude Code's auto-mode reminder, the paragraph sending the model to `cat`, `sed`, and short scripts for reading and editing files, with the instruments the guide's Working from Bash topic names. Claude Code installs it from this repository on GitHub with `autoUpdate` on, so it follows `main` rather than a consumer's lock of this flake.
-- `~/.claude` composed from [`claude/`](claude/): its `base/` and `bin/` are linked in, the machine's overlay settings are written to `~/.claude/overlay/settings.json`, and `compose-home` runs on every activation. Everything else in `~/.claude` stays Claude Code's own. [`claude/README.md`](claude/README.md) covers the layers and how they compose.
+- `~/.claude` composed from [`claude/`](claude/): its `base/` and `bin/` are linked in, the machine's overlay settings are written to `~/.claude/overlay/settings.json` and its overlay guide text to `~/.claude/overlay/guide/`, and `compose-home` runs on every activation. Everything else in `~/.claude` stays Claude Code's own. [`claude/README.md`](claude/README.md) covers the layers and how they compose.
 
 The packages come from this flake's own `nixpkgs`, pinned by `flake.lock`. A consumer that wants one package set makes it follow its own input.
 
@@ -43,7 +43,11 @@ claudeHome.overlay.settings = {
 
 A personal machine sets `claudeHome.personal.enable = true;`, which adds this repository's `dotfiles` plugin to its overlay. A machine under an employer's managed policy leaves it off: the plugin's mod rewrites Claude Code's auto-mode reminder, and such a policy can refuse that rewrite.
 
-home-manager refuses to replace a file it did not create. On a machine where `~/.claude/base`, `~/.claude/bin`, or `~/.claude/overlay/settings.json` already exists, move it aside before the first activation.
+A machine's own guide text goes through `claudeHome.overlay.guide`, by topic name, which matches `[a-z0-9-]+`: each entry is written to `~/.claude/overlay/guide/<topic>.md`, and an entry extending a topic the base layer introduces carries no heading of its own. Text for the Git topic goes through `claudeHome.overlay.guide.git`, where it joins the merge rule below, and never through a `home.file` entry on `.claude/overlay/guide/` or a file under it. Such an entry replaces or hides the module's file, dropping the rule while the ask entry stays, and the module refuses it at evaluation.
+
+Merging waits on my go-ahead wherever `claudeHome.mergeApproval.enable` stays on, its default: the overlay carries the rule in its Git topic and a `permissions.ask` entry for `gh pr merge`. A machine that sets `claudeHome.mergeApproval.enable = false;` composes neither.
+
+home-manager refuses to replace a file it did not create, at a machine's first activation and at every later one. Where `~/.claude/base`, `~/.claude/bin`, or a file the module writes under `~/.claude/overlay/` already stands and home-manager did not create it, move it aside before activating a configuration that writes it.
 
 ## Updating
 

@@ -77,6 +77,18 @@ refute_rewritten() {
   [ "$(cat "$out/topics/git.md")" = $'# Git\n\n- Never force push.\n\n- Every merge is a squash.' ]
 }
 
+@test "an extension that is a symlink composes as its target's text" {
+  write base/guide/git.md $'# Git\n\n- Never force push.'
+  write shared/git.md '- Every merge is a squash.'
+  mkdir -p "$layers/work/guide"
+  ln -s "$layers/shared/git.md" "$layers/work/guide/git.md"
+
+  run "$COMPOSE" "$out" "$layers/base" "$layers/work"
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$out/topics/git.md")" = $'# Git\n\n- Never force push.\n\n- Every merge is a squash.' ]
+}
+
 @test "a later layer's new topic takes its alphabetical place" {
   write base/guide/git.md '# Git'
   write base/guide/testing.md '# Testing'

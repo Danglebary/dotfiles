@@ -114,6 +114,49 @@
             imports = [ self.homeManagerModules.default ];
             claudeHome.personal.enable = true;
           };
+          mergeApprovalOffModule = {
+            imports = [ self.homeManagerModules.default ];
+            claudeHome.mergeApproval.enable = false;
+          };
+          overlayGitGuidePath = ".claude/overlay/guide/git.md";
+          homeFiles = module: (homeConfiguration module).config.home.file;
+          # The overlay layer exactly as activation links it into a home.
+          overlayLayer = module: "${(homeConfiguration module).config.home-files}/.claude/overlay";
+          # home-manager throws on reading any part of a configuration whose
+          # assertions fail, and a conflict between two home.file sources throws
+          # only once that file's source is read, so a refusal is observable only
+          # as a generation whose files fail to evaluate, and each refused module
+          # is paired with an accepted one differing only in the definition under
+          # test.
+          evaluates = module: (builtins.tryEval (homeConfiguration module).config.home-files.drvPath).success;
+          moduleWith = definitions: {
+            imports = [
+              self.homeManagerModules.default
+              definitions
+            ];
+          };
+          refusalCases = {
+            "a topic name that is no plain file name" = {
+              accepted = moduleWith { claudeHome.overlay.guide.rules = "- A rule."; };
+              refused = moduleWith { claudeHome.overlay.guide."Git/rules" = "- A rule."; };
+            };
+            "a home.file entry linking the overlay's guide directory" = {
+              accepted = moduleWith { home.file.".claude/overlay-guide".source = ./claude/base/guide; };
+              refused = moduleWith { home.file.".claude/overlay/guide".source = ./claude/base/guide; };
+            };
+            "a home.file text on the overlay's Git topic" = {
+              accepted = moduleWith { home.file.".claude/overlay/notes.md".text = "- A rule."; };
+              refused = moduleWith { home.file.${overlayGitGuidePath}.text = "- A rule."; };
+            };
+            "a home.file source on the overlay's Git topic" = {
+              accepted = moduleWith { home.file.".claude/overlay/notes.md".source = ./claude/base/guide/git.md; };
+              refused = moduleWith { home.file.${overlayGitGuidePath}.source = ./claude/base/guide/git.md; };
+            };
+          };
+          caseNamesWhere =
+            predicate: builtins.attrNames (nixpkgs.lib.filterAttrs (_: predicate) refusalCases);
+          rejectedAccepted = caseNamesWhere (case: !(evaluates case.accepted));
+          acceptedRefused = caseNamesWhere (case: evaluates case.refused);
         in
         {
           # Builds every package and the generated files, so a module that
@@ -131,6 +174,41 @@
             jq --exit-status '.extraKnownMarketplaces | has("dotfiles") | not' ${./claude/base/settings.json}
             touch $out
           '';
+
+          # The merge gate is the overlay's alone: the base layer composed with
+          # the overlay the default module links carries the go-ahead rule at the
+          # end of the Git topic and its ask entry, and composed with the overlay
+          # of a machine that turns the option off carries no bullet leading with
+          # merging and no ask entry naming gh pr merge.
+          mergeApproval =
+            if builtins.hasAttr overlayGitGuidePath (homeFiles mergeApprovalOffModule) then
+              throw "claudeHome.mergeApproval.enable = false still writes ~/${overlayGitGuidePath}."
+            else
+              pkgs.runCommand "dotfiles-merge-approval" { nativeBuildInputs = [ pkgs.jq ]; } ''
+                gated_overlay=${overlayLayer self.homeManagerModules.default}
+                bash ${./claude/bin}/compose gated ${./claude/base} "$gated_overlay"
+                bash ${./claude/bin}/compose ungated ${./claude/base} ${overlayLayer mergeApprovalOffModule}
+
+                gated_topic="$(cat ${./claude/base/guide/git.md})"$'\n\n'"$(cat "$gated_overlay/guide/git.md")"
+                [ "$(cat gated/topics/git.md)" = "$gated_topic" ]
+                grep --quiet --fixed-strings '**Merging is gated on my go-ahead, every time.**' gated/topics/git.md
+                jq --exit-status '.permissions.ask | index("Bash(gh pr merge:*)") != null' gated/settings.json
+
+                if grep --quiet --extended-regexp '^- \*\*[^*]*[Mm]erg' ungated/topics/git.md; then
+                  printf 'the ungated composition still carries a bullet leading with merging\n' >&2
+                  exit 1
+                fi
+                jq --exit-status '[.permissions.ask[] | select(contains("gh pr merge"))] == []' ungated/settings.json
+                touch $out
+              '';
+
+          overlayRefusals =
+            if rejectedAccepted != [ ] then
+              throw "The module refuses the accepted side of ${builtins.concatStringsSep ", " rejectedAccepted}."
+            else if acceptedRefused != [ ] then
+              throw "The module accepts ${builtins.concatStringsSep ", " acceptedRefused}."
+            else
+              pkgs.runCommand "dotfiles-overlay-refusals" { } "touch $out";
 
           # The plugin tools are imported alone by a configuration that composes
           # ~/.claude itself, so they build without the default module, and a
