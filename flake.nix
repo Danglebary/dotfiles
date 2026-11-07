@@ -114,6 +114,15 @@
             imports = [ self.homeManagerModules.default ];
             claudeHome.personal.enable = true;
           };
+          personalGatedModule = moduleWith {
+            claudeHome.personal.enable = true;
+            claudeHome.mergeApproval.enable = true;
+          };
+          personalElsewhereModule = moduleWith {
+            claudeHome.personal.enable = true;
+            claudeHome.personal.pirrCheckout = "/srv/pirr";
+          };
+          checkHomeDirectory = (checkHome pkgs).home.homeDirectory;
           mergeApprovalOffModule = {
             imports = [ self.homeManagerModules.default ];
             claudeHome.mergeApproval.enable = false;
@@ -152,6 +161,19 @@
               accepted = moduleWith { home.file.".claude/overlay/notes.md".source = ./claude/base/guide/git.md; };
               refused = moduleWith { home.file.${overlayGitGuidePath}.source = ./claude/base/guide/git.md; };
             };
+            "a machine's auto-mode entries carrying a second $defaults beside the personal settings'" = {
+              accepted = moduleWith {
+                claudeHome.personal.enable = true;
+                claudeHome.overlay.settings.autoMode.environment = [ "Host: a machine." ];
+              };
+              refused = moduleWith {
+                claudeHome.personal.enable = true;
+                claudeHome.overlay.settings.autoMode.environment = [
+                  "$defaults"
+                  "Host: a machine."
+                ];
+              };
+            };
           };
           caseNamesWhere =
             predicate: builtins.attrNames (nixpkgs.lib.filterAttrs (_: predicate) refusalCases);
@@ -163,17 +185,54 @@
           # evaluates but links a missing path or a broken package fails here.
           module = activationPackage self.homeManagerModules.default;
 
-          # The dotfiles plugin is the personal settings' alone: a machine that
-          # enables them gets the plugin through its overlay, and the base layer
-          # and a machine that does not enable them carry none of it.
-          personal = pkgs.runCommand "dotfiles-personal" { nativeBuildInputs = [ pkgs.jq ]; } ''
-            jq --exit-status '.enabledPlugins["dotfiles@dotfiles"] == true' ${overlaySettingsFile personalModule}
-            jq --exit-status '.extraKnownMarketplaces.dotfiles.source.repo == "Danglebary/dotfiles"' ${overlaySettingsFile personalModule}
-            jq --exit-status '.enabledPlugins["dotfiles@dotfiles"] == null' ${overlaySettingsFile self.homeManagerModules.default}
-            jq --exit-status '.enabledPlugins | has("dotfiles@dotfiles") | not' ${./claude/base/settings.json}
-            jq --exit-status '.extraKnownMarketplaces | has("dotfiles") | not' ${./claude/base/settings.json}
-            touch $out
-          '';
+          # The personal overlay is the personal settings' alone: a machine that
+          # enables them gets the dotfiles and pirr plugins, the pirr read verbs'
+          # allow entries, and the auto-mode entries through its overlay, and no
+          # merge gate unless it turns the gate back on; the base layer and a
+          # machine that does not enable them carry none of it.
+          personal =
+            if builtins.hasAttr overlayGitGuidePath (homeFiles personalModule) then
+              throw "claudeHome.personal.enable = true still writes ~/${overlayGitGuidePath}."
+            else if !(builtins.hasAttr overlayGitGuidePath (homeFiles personalGatedModule)) then
+              throw "claudeHome.personal.enable = true outranks claudeHome.mergeApproval.enable = true, so ~/${overlayGitGuidePath} is not written."
+            else
+              pkgs.runCommand "dotfiles-personal" { nativeBuildInputs = [ pkgs.jq ]; } ''
+                personal=${overlaySettingsFile personalModule}
+                jq --exit-status '.enabledPlugins["dotfiles@dotfiles"] == true' "$personal"
+                jq --exit-status '.extraKnownMarketplaces.dotfiles.source.repo == "Danglebary/dotfiles"' "$personal"
+                jq --exit-status '.enabledPlugins["pirr@pirr"] == true' "$personal"
+                jq --exit-status '.enabledPlugins["pirr-tui@pirr"] == true' "$personal"
+                jq --exit-status --arg path "${checkHomeDirectory}/projects/pirr" \
+                  '.extraKnownMarketplaces.pirr.source == {source: "directory", path: $path}' "$personal"
+                jq --exit-status '.permissions.allow | index("Bash(pirr decisions --id:*)") != null' "$personal"
+                jq --exit-status '.permissions.allow | index("Bash(pirr decisions read:*)") != null' "$personal"
+                jq --exit-status '.permissions.allow | index("Bash(pirr guide:*)") != null' "$personal"
+                jq --exit-status '.autoMode.environment[0] == "$defaults"' "$personal"
+                jq --exit-status '.autoMode.allow[0] == "$defaults"' "$personal"
+                jq --exit-status --arg workstreams "under ${checkHomeDirectory}/projects/pirr-workstreams," \
+                  '.autoMode.allow | map(select(startswith("pirr Workstream Merges:"))) | length == 1' "$personal"
+                jq --exit-status --arg workstreams "under ${checkHomeDirectory}/projects/pirr-workstreams," \
+                  '.autoMode.allow | map(select(startswith("pirr Workstream Merges:")))[0] | contains($workstreams)' "$personal"
+                jq --exit-status '[.permissions.ask[]? | select(contains("gh pr merge"))] == []' "$personal"
+
+                jq --exit-status '.permissions.ask | index("Bash(gh pr merge:*)") != null' ${overlaySettingsFile personalGatedModule}
+                jq --exit-status '.extraKnownMarketplaces.pirr.source.path == "/srv/pirr"' ${overlaySettingsFile personalElsewhereModule}
+
+                impersonal=${overlaySettingsFile self.homeManagerModules.default}
+                jq --exit-status '.enabledPlugins // {} | has("dotfiles@dotfiles") | not' "$impersonal"
+                jq --exit-status '.enabledPlugins // {} | has("pirr@pirr") | not' "$impersonal"
+                jq --exit-status '.enabledPlugins // {} | has("pirr-tui@pirr") | not' "$impersonal"
+                jq --exit-status '.extraKnownMarketplaces // {} | has("pirr") | not' "$impersonal"
+                jq --exit-status 'has("autoMode") | not' "$impersonal"
+                jq --exit-status '[.permissions.allow[]? | select(startswith("Bash(pirr "))] == []' "$impersonal"
+                jq --exit-status '.enabledPlugins | has("dotfiles@dotfiles") | not' ${./claude/base/settings.json}
+                jq --exit-status '.enabledPlugins | has("pirr@pirr") | not' ${./claude/base/settings.json}
+                jq --exit-status '.enabledPlugins | has("pirr-tui@pirr") | not' ${./claude/base/settings.json}
+                jq --exit-status '[.permissions.allow[]? | select(startswith("Bash(pirr "))] == []' ${./claude/base/settings.json}
+                jq --exit-status '.extraKnownMarketplaces | has("dotfiles") | not' ${./claude/base/settings.json}
+                jq --exit-status '.extraKnownMarketplaces | has("pirr") | not' ${./claude/base/settings.json}
+                touch $out
+              '';
 
           # The merge gate is the overlay's alone: the base layer composed with
           # the overlay the default module links carries the go-ahead rule at the
