@@ -209,6 +209,10 @@
                 jq --exit-status '.permissions.allow | index("Bash(pirr guide:*)") != null' "$personal"
                 jq --exit-status '.autoMode.environment[0] == "$defaults"' "$personal"
                 jq --exit-status '.autoMode.allow[0] == "$defaults"' "$personal"
+                jq --exit-status --arg workstreams "under ${checkHomeDirectory}/projects/pirr-workstreams," \
+                  '.autoMode.allow | map(select(startswith("pirr Workstream Merges:"))) | length == 1' "$personal"
+                jq --exit-status --arg workstreams "under ${checkHomeDirectory}/projects/pirr-workstreams," \
+                  '.autoMode.allow | map(select(startswith("pirr Workstream Merges:")))[0] | contains($workstreams)' "$personal"
                 jq --exit-status '[.permissions.ask[]? | select(contains("gh pr merge"))] == []' "$personal"
 
                 jq --exit-status '.permissions.ask | index("Bash(gh pr merge:*)") != null' ${overlaySettingsFile personalGatedModule}

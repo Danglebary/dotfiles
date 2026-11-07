@@ -148,6 +148,7 @@ let
       "pirr Stub Fixtures: Pointing a scratch copy of pirr's configuration at a stub program inside the session scratchpad to replay a fixture is ordinary testing, not an auto-mode bypass, provided the stub runs no claude invocation."
       "Restricted Nested Claude: Running claude -p as a probe or evaluation child is allowed when it runs in the session scratchpad under a timeout, with an explicit narrow --tools or --allowedTools list, a permission mode of default or dontAsk, and neither bypassPermissions nor --dangerously-skip-permissions."
       "Handoff Notes: Deleting a handoff.md note in ~ or at the root of a repository under ~/projects once the session has read it. The user has sessions write these notes as one-shot handoffs to the next session."
+      "pirr Workstream Merges: Running just workstream merge from a pirr workstream's worktree under ${config.claudeHome.personal.pirrCheckout}-workstreams, which merges that workstream's own pull request into main, is allowed. The user does not review pull requests in their personal repositories and has dropped the go-ahead on merging them, and the verb merges under a lock only the head its gate passed on, refusing while the user holds merges. Running gh pr merge directly stays outside this rule."
     ];
   };
 
