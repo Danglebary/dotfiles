@@ -186,6 +186,26 @@
               accepted = moduleWith { home.file.".claude/overlay-guide".source = ./claude/base/guide; };
               refused = moduleWith { home.file.".claude/overlay/guide".source = ./claude/base/guide; };
             };
+            "a home.file entry linking the overlay's rules directory" = {
+              accepted = moduleWith {
+                claudeHome.overlay.rules."rust/comments" = "- A rule.";
+                home.file.".claude/overlay-rules".source = ./claude/base/rules;
+              };
+              refused = moduleWith {
+                claudeHome.overlay.rules."rust/comments" = "- A rule.";
+                home.file.".claude/overlay/rules".source = ./claude/base/rules;
+              };
+            };
+            "a home.file entry linking the overlay's replacements directory" = {
+              accepted = moduleWith {
+                claudeHome.overlay.replacements.comments = "# Comments";
+                home.file.".claude/overlay-replacements".source = ./claude/base/guide;
+              };
+              refused = moduleWith {
+                claudeHome.overlay.replacements.comments = "# Comments";
+                home.file.".claude/overlay/replacements".source = ./claude/base/guide;
+              };
+            };
             "a home.file text on the overlay's Git topic" = {
               accepted = moduleWith { home.file.".claude/overlay/notes.md".text = "- A rule."; };
               refused = moduleWith { home.file.${overlayGitGuidePath}.text = "- A rule."; };
@@ -265,7 +285,8 @@
           # personal home composes its Comments topic in place of the base's, the
           # Git topic's trailer line after the base's Git topic and no merge gate
           # unless it turns the gate back on, and its Rust rules file under
-          # rules/overlay/; a machine that does not enable them writes none of it.
+          # rules/overlay/; a machine that does not enable them writes none of it,
+          # and its composed guide holds none of the personal overlay's bullets.
           personalGuide =
             if builtins.hasAttr overlayCommentsReplacementPath (homeFiles self.homeManagerModules.default) then
               throw "claudeHome.personal.enable = false still writes ~/${overlayCommentsReplacementPath}."
@@ -305,6 +326,16 @@
                 [ "$(head --lines=1 "$rust_rule")" = "---" ]
                 grep --quiet --line-regexp --fixed-strings '  - "**/*.rs"' "$rust_rule"
                 grep --quiet --fixed-strings '#[expect(lint, reason = "…")]' "$rust_rule"
+
+                bash ${./claude/bin}/compose impersonal ${./claude/base} ${overlayLayer self.homeManagerModules.default}
+                personal_bullets="$(cat "$overlay/guide/git.md" "$overlay/replacements/comments.md" "$rust_rule" | grep --extended-regexp '^- \*\*')"
+                grep --quiet --fixed-strings -- "$trailer_rule" <<< "$personal_bullets"
+                while IFS= read -r bullet; do
+                  if grep --quiet --recursive --fixed-strings -- "$bullet" impersonal; then
+                    printf 'claudeHome.personal.enable = false composes the personal overlay line %s into the guide\n' "$bullet" >&2
+                    exit 1
+                  fi
+                done <<< "$personal_bullets"
                 touch $out
               '';
 
