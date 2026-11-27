@@ -218,7 +218,95 @@ refute_rewritten() {
   run "$COMPOSE" "$out" "$layers/base" "$layers/work"
 
   [ "$status" -eq 0 ]
-  [ "$(jq --compact-output . "$out/manifest.json")" = '{"topics":[{"name":"git","layers":["base","work"]},{"name":"jira","layers":["work"]}]}' ]
+  [ "$(jq --compact-output . "$out/manifest.json")" = '{"topics":[{"name":"git","layers":["base","work"],"replacements":[]},{"name":"jira","layers":["work"],"replacements":[]}]}' ]
+}
+
+@test "a later layer's replacement drops what earlier layers wrote for the topic" {
+  write base/guide/comments.md $'# Comments\n\n- Explain why.'
+  write work/guide/comments.md '- Cite the ticket.'
+  write personal/replacements/comments.md $'# Comments\n\n- Write none.'
+
+  run "$COMPOSE" "$out" "$layers/base" "$layers/work" "$layers/personal"
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$out/topics/comments.md")" = $'# Comments\n\n- Write none.' ]
+}
+
+@test "a replaced topic stands in CLAUDE.md as the replacement's text alone, in its alphabetical place" {
+  write base/guide/comments.md $'# Comments\n\n- Explain why.'
+  write base/guide/git.md '# Git'
+  write personal/replacements/comments.md $'# Comments\n\n- Write none.'
+
+  run "$COMPOSE" "$out" "$layers/base" "$layers/personal"
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$out/CLAUDE.md")" = $'# Comments\n\n- Write none.\n\n# Git' ]
+}
+
+@test "a layer after a replacement extends the replaced topic" {
+  write base/guide/comments.md $'# Comments\n\n- Explain why.'
+  write personal/replacements/comments.md $'# Comments\n\n- Write none.'
+  write machine/guide/comments.md '- Keep the license header.'
+
+  run "$COMPOSE" "$out" "$layers/base" "$layers/personal" "$layers/machine"
+
+  [ "$status" -eq 0 ]
+  [ "$(cat "$out/topics/comments.md")" = $'# Comments\n\n- Write none.\n\n- Keep the license header.' ]
+}
+
+@test "the manifest records a replacement and the layers it dropped" {
+  write base/guide/comments.md '# Comments'
+  write work/guide/comments.md '- Cite the ticket.'
+  write personal/replacements/comments.md '# Comments'
+  write machine/guide/comments.md '- Keep the license header.'
+
+  run "$COMPOSE" "$out" "$layers/base" "$layers/work" "$layers/personal" "$layers/machine"
+
+  [ "$status" -eq 0 ]
+  [ "$(jq --compact-output . "$out/manifest.json")" = '{"topics":[{"name":"comments","layers":["personal","machine"],"replacements":[{"layer":"personal","dropped":["base","work"]}]}]}' ]
+}
+
+@test "a replacement for a topic no earlier layer carries is refused" {
+  write base/guide/comments.md '# Comments'
+  write personal/replacements/comment.md '# Comment'
+
+  run "$COMPOSE" "$out" "$layers/base" "$layers/personal"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"personal/replacements/comment.md"* ]]
+  [[ "$output" == *"no earlier layer carries"* ]]
+}
+
+@test "a replacement in the first layer is refused" {
+  write base/replacements/comments.md '# Comments'
+
+  run "$COMPOSE" "$out" "$layers/base"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"base/replacements/comments.md"* ]]
+  [[ "$output" == *"no earlier layer carries"* ]]
+}
+
+@test "a layer that both extends and replaces one topic is refused" {
+  write base/guide/comments.md '# Comments'
+  write personal/guide/comments.md '- Write none.'
+  write personal/replacements/comments.md '# Comments'
+
+  run "$COMPOSE" "$out" "$layers/base" "$layers/personal"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"personal holds both guide/comments.md and replacements/comments.md"* ]]
+}
+
+@test "a replacement that opens without a top-level heading is refused" {
+  write base/guide/comments.md '# Comments'
+  write personal/replacements/comments.md '- Write none.'
+
+  run "$COMPOSE" "$out" "$layers/base" "$layers/personal"
+
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"personal/replacements/comments.md"* ]]
+  [[ "$output" == *"heading"* ]]
 }
 
 @test "files in the output directory that compose does not own survive a run" {

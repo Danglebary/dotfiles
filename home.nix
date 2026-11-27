@@ -59,17 +59,27 @@ let
     value.source = pkgs.writeText "claude-overlay-guide-${topic}.md" text;
   };
   overlayGuideFiles = lib.mapAttrs' overlayGuideFile overlayGuide;
-  topicNameAssertion = topic: {
+  overlayReplacements = config.claudeHome.overlay.replacements;
+  overlayReplacementFile = topic: text: {
+    name = ".claude/overlay/replacements/${topic}.md";
+    value.source = pkgs.writeText "claude-overlay-replacement-${topic}.md" text;
+  };
+  overlayReplacementFiles = lib.mapAttrs' overlayReplacementFile overlayReplacements;
+  topicNameAssertion = option: topic: {
     assertion = builtins.match topicNamePattern topic != null;
-    message = "claudeHome.overlay.guide names the topic ${topic}, which is not a plain topic name (${topicNamePattern}).";
+    message = "claudeHome.overlay.${option} names the topic ${topic}, which is not a plain topic name (${topicNamePattern}).";
   };
 
   # A second home.file source for one of the module's overlay paths conflicts
   # with the module's own at evaluation. A text definition on the same path and
   # an entry linking a directory above it merge without a conflict and drop or
   # ignore what one side wrote, so the assertions below refuse both.
-  overlayPaths = [ overlaySettingsPath ] ++ builtins.attrNames overlayGuideFiles;
-  overlayOwnershipRemedy = "Overlay text and settings go through claudeHome.overlay.guide and claudeHome.overlay.settings.";
+  overlayPaths = [
+    overlaySettingsPath
+  ]
+  ++ builtins.attrNames overlayGuideFiles
+  ++ builtins.attrNames overlayReplacementFiles;
+  overlayOwnershipRemedy = "Overlay text and settings go through claudeHome.overlay.guide, claudeHome.overlay.replacements, and claudeHome.overlay.settings.";
   homeFileEntries = builtins.attrValues config.home.file;
   enabledHomeFileEntries = builtins.filter (entry: entry.enable) homeFileEntries;
   enclosingEntries =
@@ -205,9 +215,26 @@ in
       ~/.claude/overlay/guide/<topic>.md for compose-home to compose after the
       base layer. A topic name matches [a-z0-9-]+. Text extending a topic the
       base layer introduces carries no top-level heading, and text introducing
-      a topic opens with one. Definitions of one topic from several modules
-      join into one file, which the module owns: a home.file entry on that
-      file or on a directory above it is refused.
+      a topic opens with one; a base topic is replaced whole through
+      claudeHome.overlay.replacements. Definitions of one topic from several
+      modules join into one file, which the module owns: a home.file entry on
+      that file or on a directory above it is refused.
+    '';
+  };
+
+  options.claudeHome.overlay.replacements = lib.mkOption {
+    type = lib.types.attrsOf lib.types.lines;
+    default = { };
+    description = ''
+      Base topics the overlay layer replaces whole, by topic name, each written
+      to ~/.claude/overlay/replacements/<topic>.md for compose-home to compose
+      in place of everything the base layer wrote for that topic. A topic name
+      matches [a-z0-9-]+ and names a topic the base layer carries, and the text
+      opens with the topic's top-level heading. compose refuses a replacement
+      for a topic the base layer does not carry, and one for a topic
+      claudeHome.overlay.guide also extends. Definitions of one topic from
+      several modules join into one file, which the module owns: a home.file
+      entry on that file or on a directory above it is refused.
     '';
   };
 
@@ -227,7 +254,8 @@ in
   config = {
     assertions =
       map requiredPathAssertion requiredPaths
-      ++ map topicNameAssertion (builtins.attrNames overlayGuide)
+      ++ map (topicNameAssertion "guide") (builtins.attrNames overlayGuide)
+      ++ map (topicNameAssertion "replacements") (builtins.attrNames overlayReplacements)
       ++ map overlayEnclosureAssertion overlayPaths
       ++ map overlayTextAssertion overlayPaths
       ++ map autoModeDefaultsMarkerAssertion autoModeListNames;
@@ -251,6 +279,7 @@ in
       (lib.listToAttrs linkedFiles)
       { ${overlaySettingsPath}.source = overlaySettingsFile; }
       overlayGuideFiles
+      overlayReplacementFiles
     ];
 
     # Composing at activation gives a machine its CLAUDE.md and settings.json

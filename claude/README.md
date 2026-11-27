@@ -1,6 +1,6 @@
 # claude
 
-My global [Claude Code](https://claude.com/claude-code) configuration, which this repository's home-manager module links into `~/.claude` and composes there on every machine I develop on. This is the base: what holds in every environment whenever its subject comes up. Anything specific to an employer or to one environment belongs in an overlay, never here.
+My global [Claude Code](https://claude.com/claude-code) configuration, which this repository's home-manager module links into `~/.claude` and composes there on every machine I develop on. This is the base: what every environment starts from. Anything specific to an employer or to one environment belongs in an overlay, never here, and an overlay whose persona works otherwise replaces a base topic whole.
 
 ## What's here
 
@@ -15,17 +15,18 @@ The module links `base/` and `bin/` into `~/.claude`. `compose` writes `CLAUDE.m
 
 ## Layers
 
-A layer is a directory holding any of three things, and its name is the directory's name:
+A layer is a directory holding any of four things, and its name is the directory's name:
 
 - `guide/<topic>.md` — instructions loaded into every session. One topic per subject, and every rule lives in exactly one topic.
+- `replacements/<topic>.md` — a topic an earlier layer carries, replaced whole.
 - `rules/**/*.md` — Claude Code [rules](https://code.claude.com/docs/en/memory.md). A rule with `paths:` frontmatter loads only once Claude reads or edits a matching file, which is where language-specific guidance goes.
 - `settings.json` — a settings fragment.
 
-`base/` is the base layer. A persona overlay (a machine's, an employer's) is a directory with the same shape at `~/.claude/overlay/`; the module writes its `settings.json` from the `claudeHome.overlay.settings` option and its `guide/<topic>.md` files from the `claudeHome.overlay.guide` option.
+`base/` is the base layer. A persona overlay (a machine's, an employer's) is a directory with the same shape at `~/.claude/overlay/`; the module writes its `settings.json` from the `claudeHome.overlay.settings` option, its `guide/<topic>.md` files from the `claudeHome.overlay.guide` option, and its `replacements/<topic>.md` files from the `claudeHome.overlay.replacements` option.
 
 The merge gate is the overlay's, so a machine can turn it off: `claudeHome.mergeApproval.enable`, on by default and off by default where `claudeHome.personal.enable` is on, writes the rule that merging waits on my go-ahead into the overlay's Git topic and a `permissions.ask` entry for `gh pr merge` into its settings, and the base layer carries neither.
 
-Layers only add. A topic is every layer's file of that name, the base's first: the layer that introduces a topic opens it with a top-level heading, and a later layer's file of the same name extends it and carries no heading of its own. `compose` refuses a layer that breaks either half of that. Topics are written in alphabetical order, and nothing in the guide depends on the order, since a reference to another topic names it. Rules are copied as plain files under `rules/<layer>/`. Settings merge recursively: objects merge, arrays union with the earlier layer's entries first, and scalars override, so an overlay can add to a base list such as `permissions.ask` and can never remove a base entry from it.
+A topic is every layer's file of that name, the base's first: the layer that introduces a topic opens it with a top-level heading, and a later layer's `guide/<topic>.md` extends it and carries no heading of its own. A later layer may instead replace the topic whole with `replacements/<topic>.md`, which opens with a top-level heading and drops what earlier layers wrote for that topic; layers after it still extend it, and `manifest.json` records each replacement and the layers it dropped. `compose` refuses a topic's first file without a heading, an extension with one, a replacement for a topic no earlier layer carries, and a layer holding both files for one topic, so a stray heading never replaces a topic. Nothing else removes what an earlier layer wrote. Topics are written in alphabetical order, and nothing in the guide depends on the order, since a reference to another topic names it. Rules are copied as plain files under `rules/<layer>/`. Settings merge recursively: objects merge, arrays union with the earlier layer's entries first, and scalars override, so an overlay can add to a base list such as `permissions.ask` and can never remove a base entry from it.
 
 ## Composing
 

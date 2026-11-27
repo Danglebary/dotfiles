@@ -1,18 +1,24 @@
 #!/usr/bin/env bash
 # Composes Claude Code's user configuration from an ordered list of layers.
 #
-# A layer is a directory holding any of guide/<topic>.md, rules/**, and
-# settings.json, and its name is the directory's name. The first layer to carry
-# a topic opens it with a top-level heading; a later layer's file of the same
-# name extends that topic and carries no heading of its own. Layers only add:
-# nothing here removes or reorders what an earlier layer wrote.
+# A layer is a directory holding any of guide/<topic>.md, replacements/<topic>.md,
+# rules/**, and settings.json, and its name is the directory's name. The first
+# layer to carry a topic opens it with a top-level heading; a later layer's
+# guide/<topic>.md extends that topic and carries no heading of its own. A later
+# layer's replacements/<topic>.md replaces the topic whole: it opens with a
+# top-level heading, drops what earlier layers wrote for that topic, and layers
+# after it still extend it. The replacement's path is its mark, so no text is
+# stripped from it. A replacement for a topic no earlier layer carries, and a
+# layer holding both files for one topic, are refused. Nothing else here removes
+# or reorders what an earlier layer wrote.
 #
 # Writes into the output directory, and touches nothing else there:
 #   CLAUDE.md       every topic, alphabetically, each layer's part in layer order
 #   topics/<t>.md   each topic on its own
 #   rules/<layer>/  each layer's rules, copied as plain files
 #   settings.json   the layers' settings fragments merged (bin/merge-settings.jq)
-#   manifest.json   each topic and the layers contributing to it
+#   manifest.json   each topic, the layers whose text it holds, and each
+#                   replacement with the layers it dropped
 #
 # Everything is validated and built in a staging directory first, so a refused
 # run changes nothing.
@@ -47,12 +53,12 @@ check_layers() {
   done
 }
 
-# Every topic name any layer carries, sorted bytewise so the order is the same
-# on every machine.
+# Every topic name any layer carries or replaces, sorted bytewise so the order
+# is the same on every machine.
 topic_names() {
   local layer file
   for layer in "$@"; do
-    for file in "$layer"/guide/*.md; do
+    for file in "$layer"/guide/*.md "$layer"/replacements/*.md; do
       if [ -e "$file" ]; then
         basename "$file" .md
       fi
@@ -66,43 +72,72 @@ opens_with_heading() {
   [[ "$first_line" == "# "* ]]
 }
 
+# json_array <value>... prints its arguments as one JSON array of strings.
+json_array() {
+  jq --compact-output --null-input '$ARGS.positional' --args -- "$@"
+}
+
 # compose_topic <staging> <topic> <layer>... writes topics/<topic>.md and
-# prints the names of the layers that contributed, one per line.
+# prints the topic's manifest entry as one line of JSON.
 compose_topic() {
   local staging=$1 topic=$2
   shift 2
-  local text="" layer file
+  local text="" layer name extension replacement dropped layers
+  local contributors=()
+  local replacements='[]'
   for layer in "$@"; do
-    file="$layer/guide/$topic.md"
-    if [ ! -e "$file" ]; then
+    extension="$layer/guide/$topic.md"
+    replacement="$layer/replacements/$topic.md"
+    name=$(basename "$layer")
+    if [ -e "$replacement" ]; then
+      if [ -e "$extension" ]; then
+        fail "$layer holds both guide/$topic.md and replacements/$topic.md, so it would both extend and replace the $topic topic"
+      fi
+      if [ "${#contributors[@]}" -eq 0 ]; then
+        fail "$replacement replaces the $topic topic, which no earlier layer carries"
+      fi
+      if ! opens_with_heading "$replacement"; then
+        fail "$replacement replaces the $topic topic, so it must open with a top-level heading (# …)"
+      fi
+      dropped=$(json_array "${contributors[@]}")
+      replacements=$(jq --compact-output --arg layer "$name" --argjson dropped "$dropped" \
+        '. + [{layer: $layer, dropped: $dropped}]' <<< "$replacements")
+      contributors=()
+      text=$(cat "$replacement")
+    elif [ -e "$extension" ]; then
+      if [ "${#contributors[@]}" -eq 0 ]; then
+        if ! opens_with_heading "$extension"; then
+          fail "$extension introduces the $topic topic, so it must open with a top-level heading (# …)"
+        fi
+        text=$(cat "$extension")
+      else
+        if opens_with_heading "$extension"; then
+          fail "$extension extends the $topic topic, so it must not open with a top-level heading"
+        fi
+        text="$text"$'\n\n'"$(cat "$extension")"
+      fi
+    else
       continue
     fi
-    if [ -z "$text" ]; then
-      if ! opens_with_heading "$file"; then
-        fail "$file introduces the $topic topic, so it must open with a top-level heading (# …)"
-      fi
-      text=$(cat "$file")
-    else
-      if opens_with_heading "$file"; then
-        fail "$file extends the $topic topic, so it must not open with a top-level heading"
-      fi
-      text="$text"$'\n\n'"$(cat "$file")"
-    fi
-    basename "$layer"
+    contributors+=("$name")
   done
+  if [ "${#contributors[@]}" -eq 0 ]; then
+    fail "no layer contributes to the $topic topic"
+  fi
   printf '%s\n' "$text" > "$staging/topics/$topic.md"
+  layers=$(json_array "${contributors[@]}")
+  jq --compact-output --null-input --arg name "$topic" --argjson layers "$layers" \
+    --argjson replacements "$replacements" '{name: $name, layers: $layers, replacements: $replacements}'
 }
 
 compose_guide() {
   local staging=$1
   shift
   local manifest='{"topics":[]}'
-  local guide="" topic contributors layers_json
+  local guide="" topic entry
   while IFS= read -r topic; do
-    contributors=$(compose_topic "$staging" "$topic" "$@")
-    layers_json=$(printf '%s\n' "$contributors" | jq --raw-input . | jq --slurp --compact-output .)
-    manifest=$(jq --compact-output --arg name "$topic" --argjson layers "$layers_json" \
-      '.topics += [{name: $name, layers: $layers}]' <<< "$manifest")
+    entry=$(compose_topic "$staging" "$topic" "$@")
+    manifest=$(jq --compact-output --argjson entry "$entry" '.topics += [$entry]' <<< "$manifest")
     if [ -n "$guide" ]; then
       guide="$guide"$'\n\n'
     fi

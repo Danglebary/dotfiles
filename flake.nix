@@ -128,6 +128,10 @@
             claudeHome.mergeApproval.enable = false;
           };
           overlayGitGuidePath = ".claude/overlay/guide/git.md";
+          overlayCommentsReplacementPath = ".claude/overlay/replacements/comments.md";
+          commentsReplacedModule = moduleWith {
+            claudeHome.overlay.replacements.comments = "# Comments\n\n- Write none.";
+          };
           homeFiles = module: (homeConfiguration module).config.home.file;
           # The overlay layer exactly as activation links it into a home.
           overlayLayer = module: "${(homeConfiguration module).config.home-files}/.claude/overlay";
@@ -148,6 +152,20 @@
             "a topic name that is no plain file name" = {
               accepted = moduleWith { claudeHome.overlay.guide.rules = "- A rule."; };
               refused = moduleWith { claudeHome.overlay.guide."Git/rules" = "- A rule."; };
+            };
+            "a replacement's topic name that is no plain file name" = {
+              accepted = moduleWith { claudeHome.overlay.replacements.comments = "# Comments"; };
+              refused = moduleWith { claudeHome.overlay.replacements."Comments/rules" = "# Comments"; };
+            };
+            "a home.file text on the overlay's Comments replacement" = {
+              accepted = moduleWith {
+                claudeHome.overlay.replacements.comments = "# Comments";
+                home.file.".claude/overlay/notes.md".text = "- A rule.";
+              };
+              refused = moduleWith {
+                claudeHome.overlay.replacements.comments = "# Comments";
+                home.file.${overlayCommentsReplacementPath}.text = "- A rule.";
+              };
             };
             "a home.file entry linking the overlay's guide directory" = {
               accepted = moduleWith { home.file.".claude/overlay-guide".source = ./claude/base/guide; };
@@ -258,6 +276,22 @@
                   exit 1
                 fi
                 jq --exit-status '[.permissions.ask[] | select(contains("gh pr merge"))] == []' ungated/settings.json
+                touch $out
+              '';
+
+          # A replacement the module writes composes in place of the base's
+          # topic, and the manifest records it as the overlay's.
+          overlayReplacement =
+            if !(builtins.hasAttr overlayCommentsReplacementPath (homeFiles commentsReplacedModule)) then
+              throw "claudeHome.overlay.replacements.comments does not write ~/${overlayCommentsReplacementPath}."
+            else
+              pkgs.runCommand "dotfiles-overlay-replacement" { nativeBuildInputs = [ pkgs.jq ]; } ''
+                overlay=${overlayLayer commentsReplacedModule}
+                bash ${./claude/bin}/compose composed ${./claude/base} "$overlay"
+
+                [ "$(cat composed/topics/comments.md)" = "$(cat "$overlay/replacements/comments.md")" ]
+                jq --exit-status '.topics[] | select(.name == "comments") | .layers == ["overlay"]' composed/manifest.json
+                jq --exit-status '.topics[] | select(.name == "comments") | .replacements | map(.layer) == ["overlay"]' composed/manifest.json
                 touch $out
               '';
 
