@@ -22,7 +22,7 @@ A layer is a directory holding any of four things, and its name is the directory
 - `rules/**/*.md` — Claude Code [rules](https://code.claude.com/docs/en/memory.md). A rule with `paths:` frontmatter loads only once Claude reads or edits a matching file, which is where language-specific guidance goes.
 - `settings.json` — a settings fragment.
 
-`base/` is the base layer. A persona overlay (a machine's, an employer's) is a directory with the same shape at `~/.claude/overlay/`; the module writes its `settings.json` from the `claudeHome.overlay.settings` option, its `guide/<topic>.md` files from the `claudeHome.overlay.guide` option, and its `replacements/<topic>.md` files from the `claudeHome.overlay.replacements` option.
+`base/` is the base layer. A persona overlay (a machine's, an employer's) is a directory with the same shape at `~/.claude/overlay/`; the module writes its `settings.json` from the `claudeHome.overlay.settings` option, its `guide/<topic>.md` files from the `claudeHome.overlay.guide` option, its `replacements/<topic>.md` files from the `claudeHome.overlay.replacements` option, and its `rules/<path>.md` files from the `claudeHome.overlay.rules` option.
 
 The merge gate is the overlay's, so a machine can turn it off: `claudeHome.mergeApproval.enable`, on by default and off by default where `claudeHome.personal.enable` is on, writes the rule that merging waits on my go-ahead into the overlay's Git topic and a `permissions.ask` entry for `gh pr merge` into its settings, and the base layer carries neither.
 
