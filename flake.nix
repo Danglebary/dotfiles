@@ -128,6 +128,11 @@
             claudeHome.mergeApproval.enable = false;
           };
           overlayGitGuidePath = ".claude/overlay/guide/git.md";
+          overlayCommentsReplacementPath = ".claude/overlay/replacements/comments.md";
+          overlayRustRulePath = ".claude/overlay/rules/rust/comments.md";
+          commentsReplacedModule = moduleWith {
+            claudeHome.overlay.replacements.comments = "# Comments\n\n- Write none.";
+          };
           homeFiles = module: (homeConfiguration module).config.home.file;
           # The overlay layer exactly as activation links it into a home.
           overlayLayer = module: "${(homeConfiguration module).config.home-files}/.claude/overlay";
@@ -149,9 +154,57 @@
               accepted = moduleWith { claudeHome.overlay.guide.rules = "- A rule."; };
               refused = moduleWith { claudeHome.overlay.guide."Git/rules" = "- A rule."; };
             };
+            "a replacement's topic name that is no plain file name" = {
+              accepted = moduleWith { claudeHome.overlay.replacements.comments = "# Comments"; };
+              refused = moduleWith { claudeHome.overlay.replacements."Comments/rules" = "# Comments"; };
+            };
+            "a rule path that is no plain path beneath rules/" = {
+              accepted = moduleWith { claudeHome.overlay.rules."rust/comments" = "- A rule."; };
+              refused = moduleWith { claudeHome.overlay.rules."../rust/comments" = "- A rule."; };
+            };
+            "a home.file text on an overlay rule file" = {
+              accepted = moduleWith {
+                claudeHome.overlay.rules."rust/comments" = "- A rule.";
+                home.file.".claude/overlay/notes.md".text = "- A rule.";
+              };
+              refused = moduleWith {
+                claudeHome.overlay.rules."rust/comments" = "- A rule.";
+                home.file.${overlayRustRulePath}.text = "- A rule.";
+              };
+            };
+            "a home.file text on the overlay's Comments replacement" = {
+              accepted = moduleWith {
+                claudeHome.overlay.replacements.comments = "# Comments";
+                home.file.".claude/overlay/notes.md".text = "- A rule.";
+              };
+              refused = moduleWith {
+                claudeHome.overlay.replacements.comments = "# Comments";
+                home.file.${overlayCommentsReplacementPath}.text = "- A rule.";
+              };
+            };
             "a home.file entry linking the overlay's guide directory" = {
               accepted = moduleWith { home.file.".claude/overlay-guide".source = ./claude/base/guide; };
               refused = moduleWith { home.file.".claude/overlay/guide".source = ./claude/base/guide; };
+            };
+            "a home.file entry linking the overlay's rules directory" = {
+              accepted = moduleWith {
+                claudeHome.overlay.rules."rust/comments" = "- A rule.";
+                home.file.".claude/overlay-rules".source = ./claude/base/rules;
+              };
+              refused = moduleWith {
+                claudeHome.overlay.rules."rust/comments" = "- A rule.";
+                home.file.".claude/overlay/rules".source = ./claude/base/rules;
+              };
+            };
+            "a home.file entry linking the overlay's replacements directory" = {
+              accepted = moduleWith {
+                claudeHome.overlay.replacements.comments = "# Comments";
+                home.file.".claude/overlay-replacements".source = ./claude/base/guide;
+              };
+              refused = moduleWith {
+                claudeHome.overlay.replacements.comments = "# Comments";
+                home.file.".claude/overlay/replacements".source = ./claude/base/guide;
+              };
             };
             "a home.file text on the overlay's Git topic" = {
               accepted = moduleWith { home.file.".claude/overlay/notes.md".text = "- A rule."; };
@@ -185,52 +238,104 @@
           # evaluates but links a missing path or a broken package fails here.
           module = activationPackage self.homeManagerModules.default;
 
-          # The personal overlay is the personal settings' alone: a machine that
-          # enables them gets the dotfiles and pirr plugins, the pirr read verbs'
-          # allow entries, and the auto-mode entries through its overlay, and no
-          # merge gate unless it turns the gate back on; the base layer and a
-          # machine that does not enable them carry none of it.
-          personal =
-            if builtins.hasAttr overlayGitGuidePath (homeFiles personalModule) then
-              throw "claudeHome.personal.enable = true still writes ~/${overlayGitGuidePath}."
-            else if !(builtins.hasAttr overlayGitGuidePath (homeFiles personalGatedModule)) then
-              throw "claudeHome.personal.enable = true outranks claudeHome.mergeApproval.enable = true, so ~/${overlayGitGuidePath} is not written."
+          # The personal overlay's settings are the personal settings' alone: a
+          # machine that enables them gets the dotfiles and pirr plugins, the pirr
+          # read verbs' allow entries, and the auto-mode entries through its
+          # overlay, and no merge ask entry unless it turns the gate back on; the
+          # base layer and a machine that does not enable them carry none of it.
+          personal = pkgs.runCommand "dotfiles-personal" { nativeBuildInputs = [ pkgs.jq ]; } ''
+            personal=${overlaySettingsFile personalModule}
+            jq --exit-status '.enabledPlugins["dotfiles@dotfiles"] == true' "$personal"
+            jq --exit-status '.extraKnownMarketplaces.dotfiles.source.repo == "Danglebary/dotfiles"' "$personal"
+            jq --exit-status '.enabledPlugins["pirr@pirr"] == true' "$personal"
+            jq --exit-status '.enabledPlugins["pirr-tui@pirr"] == true' "$personal"
+            jq --exit-status --arg path "${checkHomeDirectory}/projects/pirr" \
+              '.extraKnownMarketplaces.pirr.source == {source: "directory", path: $path}' "$personal"
+            jq --exit-status '.permissions.allow | index("Bash(pirr decisions --id:*)") != null' "$personal"
+            jq --exit-status '.permissions.allow | index("Bash(pirr decisions read:*)") != null' "$personal"
+            jq --exit-status '.permissions.allow | index("Bash(pirr guide:*)") != null' "$personal"
+            jq --exit-status '.autoMode.environment[0] == "$defaults"' "$personal"
+            jq --exit-status '.autoMode.allow[0] == "$defaults"' "$personal"
+            jq --exit-status --arg workstreams "under ${checkHomeDirectory}/projects/pirr-workstreams," \
+              '.autoMode.allow | map(select(startswith("pirr Workstream Merges:"))) | length == 1' "$personal"
+            jq --exit-status --arg workstreams "under ${checkHomeDirectory}/projects/pirr-workstreams," \
+              '.autoMode.allow | map(select(startswith("pirr Workstream Merges:")))[0] | contains($workstreams)' "$personal"
+            jq --exit-status '[.permissions.ask[]? | select(contains("gh pr merge"))] == []' "$personal"
+
+            jq --exit-status '.permissions.ask | index("Bash(gh pr merge:*)") != null' ${overlaySettingsFile personalGatedModule}
+            jq --exit-status '.extraKnownMarketplaces.pirr.source.path == "/srv/pirr"' ${overlaySettingsFile personalElsewhereModule}
+
+            impersonal=${overlaySettingsFile self.homeManagerModules.default}
+            jq --exit-status '.enabledPlugins // {} | has("dotfiles@dotfiles") | not' "$impersonal"
+            jq --exit-status '.enabledPlugins // {} | has("pirr@pirr") | not' "$impersonal"
+            jq --exit-status '.enabledPlugins // {} | has("pirr-tui@pirr") | not' "$impersonal"
+            jq --exit-status '.extraKnownMarketplaces // {} | has("pirr") | not' "$impersonal"
+            jq --exit-status 'has("autoMode") | not' "$impersonal"
+            jq --exit-status '[.permissions.allow[]? | select(startswith("Bash(pirr "))] == []' "$impersonal"
+            jq --exit-status '.enabledPlugins | has("dotfiles@dotfiles") | not' ${./claude/base/settings.json}
+            jq --exit-status '.enabledPlugins | has("pirr@pirr") | not' ${./claude/base/settings.json}
+            jq --exit-status '.enabledPlugins | has("pirr-tui@pirr") | not' ${./claude/base/settings.json}
+            jq --exit-status '[.permissions.allow[]? | select(startswith("Bash(pirr "))] == []' ${./claude/base/settings.json}
+            jq --exit-status '.extraKnownMarketplaces | has("dotfiles") | not' ${./claude/base/settings.json}
+            jq --exit-status '.extraKnownMarketplaces | has("pirr") | not' ${./claude/base/settings.json}
+            touch $out
+          '';
+
+          # The personal overlay's guide text is the personal settings' alone: a
+          # personal home composes its Comments topic in place of the base's, the
+          # Git topic's trailer line after the base's Git topic and no merge gate
+          # unless it turns the gate back on, and its Rust rules file under
+          # rules/overlay/; a machine that does not enable them writes none of it,
+          # and its composed guide holds none of the personal overlay's bullets.
+          personalGuide =
+            if builtins.hasAttr overlayCommentsReplacementPath (homeFiles self.homeManagerModules.default) then
+              throw "claudeHome.personal.enable = false still writes ~/${overlayCommentsReplacementPath}."
+            else if builtins.hasAttr overlayRustRulePath (homeFiles self.homeManagerModules.default) then
+              throw "claudeHome.personal.enable = false still writes ~/${overlayRustRulePath}."
             else
-              pkgs.runCommand "dotfiles-personal" { nativeBuildInputs = [ pkgs.jq ]; } ''
-                personal=${overlaySettingsFile personalModule}
-                jq --exit-status '.enabledPlugins["dotfiles@dotfiles"] == true' "$personal"
-                jq --exit-status '.extraKnownMarketplaces.dotfiles.source.repo == "Danglebary/dotfiles"' "$personal"
-                jq --exit-status '.enabledPlugins["pirr@pirr"] == true' "$personal"
-                jq --exit-status '.enabledPlugins["pirr-tui@pirr"] == true' "$personal"
-                jq --exit-status --arg path "${checkHomeDirectory}/projects/pirr" \
-                  '.extraKnownMarketplaces.pirr.source == {source: "directory", path: $path}' "$personal"
-                jq --exit-status '.permissions.allow | index("Bash(pirr decisions --id:*)") != null' "$personal"
-                jq --exit-status '.permissions.allow | index("Bash(pirr decisions read:*)") != null' "$personal"
-                jq --exit-status '.permissions.allow | index("Bash(pirr guide:*)") != null' "$personal"
-                jq --exit-status '.autoMode.environment[0] == "$defaults"' "$personal"
-                jq --exit-status '.autoMode.allow[0] == "$defaults"' "$personal"
-                jq --exit-status --arg workstreams "under ${checkHomeDirectory}/projects/pirr-workstreams," \
-                  '.autoMode.allow | map(select(startswith("pirr Workstream Merges:"))) | length == 1' "$personal"
-                jq --exit-status --arg workstreams "under ${checkHomeDirectory}/projects/pirr-workstreams," \
-                  '.autoMode.allow | map(select(startswith("pirr Workstream Merges:")))[0] | contains($workstreams)' "$personal"
-                jq --exit-status '[.permissions.ask[]? | select(contains("gh pr merge"))] == []' "$personal"
+              pkgs.runCommand "dotfiles-personal-guide" { nativeBuildInputs = [ pkgs.jq ]; } ''
+                overlay=${overlayLayer personalModule}
+                bash ${./claude/bin}/compose personal ${./claude/base} "$overlay"
+                bash ${./claude/bin}/compose gated ${./claude/base} ${overlayLayer personalGatedModule}
+                instructions="$(cat personal/CLAUDE.md)"
 
-                jq --exit-status '.permissions.ask | index("Bash(gh pr merge:*)") != null' ${overlaySettingsFile personalGatedModule}
-                jq --exit-status '.extraKnownMarketplaces.pirr.source.path == "/srv/pirr"' ${overlaySettingsFile personalElsewhereModule}
+                comments_topic="$(cat personal/topics/comments.md)"
+                [ "$comments_topic" = "$(cat "$overlay/replacements/comments.md")" ]
+                [[ "$instructions" == *"$comments_topic"* ]]
+                grep --quiet --fixed-strings '**Source carries two kinds of comment and no other.**' personal/CLAUDE.md
+                if grep --quiet --fixed-strings '**The admission list is closed.**' personal/CLAUDE.md; then
+                  printf 'the personal composition still carries the base Comments topic\n' >&2
+                  exit 1
+                fi
+                jq --exit-status '.topics[] | select(.name == "comments") | .layers == ["overlay"]' personal/manifest.json
 
-                impersonal=${overlaySettingsFile self.homeManagerModules.default}
-                jq --exit-status '.enabledPlugins // {} | has("dotfiles@dotfiles") | not' "$impersonal"
-                jq --exit-status '.enabledPlugins // {} | has("pirr@pirr") | not' "$impersonal"
-                jq --exit-status '.enabledPlugins // {} | has("pirr-tui@pirr") | not' "$impersonal"
-                jq --exit-status '.extraKnownMarketplaces // {} | has("pirr") | not' "$impersonal"
-                jq --exit-status 'has("autoMode") | not' "$impersonal"
-                jq --exit-status '[.permissions.allow[]? | select(startswith("Bash(pirr "))] == []' "$impersonal"
-                jq --exit-status '.enabledPlugins | has("dotfiles@dotfiles") | not' ${./claude/base/settings.json}
-                jq --exit-status '.enabledPlugins | has("pirr@pirr") | not' ${./claude/base/settings.json}
-                jq --exit-status '.enabledPlugins | has("pirr-tui@pirr") | not' ${./claude/base/settings.json}
-                jq --exit-status '[.permissions.allow[]? | select(startswith("Bash(pirr "))] == []' ${./claude/base/settings.json}
-                jq --exit-status '.extraKnownMarketplaces | has("dotfiles") | not' ${./claude/base/settings.json}
-                jq --exit-status '.extraKnownMarketplaces | has("pirr") | not' ${./claude/base/settings.json}
+                git_topic="$(cat ${./claude/base/guide/git.md})"$'\n\n'"$(cat "$overlay/guide/git.md")"
+                [ "$(cat personal/topics/git.md)" = "$git_topic" ]
+                [[ "$instructions" == *"$git_topic"* ]]
+                trailer_rule='**A commit in a repository holding a pirr store carries the trailers'
+                grep --quiet --fixed-strings "$trailer_rule" personal/topics/git.md
+                if grep --quiet --fixed-strings '**Merging is gated on my go-ahead' personal/topics/git.md; then
+                  printf 'the personal composition carries the merge gate it turns off\n' >&2
+                  exit 1
+                fi
+                grep --quiet --fixed-strings "$trailer_rule" gated/topics/git.md
+                grep --quiet --fixed-strings '**Merging is gated on my go-ahead' gated/topics/git.md
+
+                rust_rule=personal/rules/overlay/rust/comments.md
+                cmp "$rust_rule" "$overlay/rules/rust/comments.md"
+                [ "$(head --lines=1 "$rust_rule")" = "---" ]
+                grep --quiet --line-regexp --fixed-strings '  - "**/*.rs"' "$rust_rule"
+                grep --quiet --fixed-strings '#[expect(lint, reason = "…")]' "$rust_rule"
+
+                bash ${./claude/bin}/compose impersonal ${./claude/base} ${overlayLayer self.homeManagerModules.default}
+                personal_bullets="$(cat "$overlay/guide/git.md" "$overlay/replacements/comments.md" "$rust_rule" | grep --extended-regexp '^- \*\*')"
+                grep --quiet --fixed-strings -- "$trailer_rule" <<< "$personal_bullets"
+                while IFS= read -r bullet; do
+                  if grep --quiet --recursive --fixed-strings -- "$bullet" impersonal; then
+                    printf 'claudeHome.personal.enable = false composes the personal overlay line %s into the guide\n' "$bullet" >&2
+                    exit 1
+                  fi
+                done <<< "$personal_bullets"
                 touch $out
               '';
 
@@ -258,6 +363,22 @@
                   exit 1
                 fi
                 jq --exit-status '[.permissions.ask[] | select(contains("gh pr merge"))] == []' ungated/settings.json
+                touch $out
+              '';
+
+          # A replacement the module writes composes in place of the base's
+          # topic, and the manifest records it as the overlay's.
+          overlayReplacement =
+            if !(builtins.hasAttr overlayCommentsReplacementPath (homeFiles commentsReplacedModule)) then
+              throw "claudeHome.overlay.replacements.comments does not write ~/${overlayCommentsReplacementPath}."
+            else
+              pkgs.runCommand "dotfiles-overlay-replacement" { nativeBuildInputs = [ pkgs.jq ]; } ''
+                overlay=${overlayLayer commentsReplacedModule}
+                bash ${./claude/bin}/compose composed ${./claude/base} "$overlay"
+
+                [ "$(cat composed/topics/comments.md)" = "$(cat "$overlay/replacements/comments.md")" ]
+                jq --exit-status '.topics[] | select(.name == "comments") | .layers == ["overlay"]' composed/manifest.json
+                jq --exit-status '.topics[] | select(.name == "comments") | .replacements | map(.layer) == ["overlay"]' composed/manifest.json
                 touch $out
               '';
 
